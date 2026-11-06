@@ -1,4 +1,5 @@
 # Karl.AiExtension
+![Uploading image.png…]()
 
 把「契约驱动 + 源生成器 + 微软 MCP C# SDK + 轻量语义封装」的桌面端 AI 扩展架构，落成一个**可以跑起来**的 .NET 10 解决方案骨架。
 
