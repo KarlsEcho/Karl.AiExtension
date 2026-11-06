@@ -5,6 +5,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:chat="clr-namespace:AI.Extension.WPF.Chat;assembly=AI.Extension.WPF"
         xmlns:diag="clr-namespace:AI.Extension.WPF.Diagnostics;assembly=AI.Extension.WPF"
+        xmlns:providers="clr-namespace:AI.Extension.WPF.Providers;assembly=AI.Extension.WPF"
         mc:Ignorable="d"
         Title="Karl.AiExtension · 契约驱动 + MCP 的桌面端 AI 扩展 Demo"
         Height="880"
@@ -105,6 +106,9 @@
             <TabControl BorderThickness="0" Background="#FFFFFF">
                 <TabItem Header="AI 对话" FontSize="12">
                     <chat:AiChatPanel x:Name="ChatSurface" />
+                </TabItem>
+                <TabItem Header="模型与供应商" FontSize="12">
+                    <providers:AiProviderManagerPanel x:Name="ProvidersSurface" />
                 </TabItem>
                 <TabItem Header="工具与契约" FontSize="12">
                     <diag:AiDiagnosticsPanel x:Name="DiagnosticsSurface" />

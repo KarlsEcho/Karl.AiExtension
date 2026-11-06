@@ -1,0 +1,68 @@
+@using AI.Extension.Providers
+@implements IDisposable
+
+<section class="ai-model-selector">
+    <div class="ai-model-selector-head">
+        <div class="ai-model-selector-heading">
+            <h2 class="ai-model-selector-title">模型与供应商</h2>
+            <p class="ai-model-selector-caption">
+                复用 <code>AI.Extension.Core</code> 的供应商管理，与 WPF 共享同一份 providers.json。
+            </p>
+        </div>
+        <span class="ai-model-current">当前模型：<strong>@Manager.ActiveModelLabel</strong></span>
+    </div>
+
+    @if (_candidates.Count == 0)
+    {
+        <p class="ai-model-empty">
+            暂无可用供应商：请到 WPF 的「模型与供应商」页填写 API Key，或通过环境变量
+            KARL_AI_API_KEY/KARL_AI_MODEL/KARL_AI_ENDPOINT 启动一次。
+        </p>
+    }
+    else
+    {
+        <div class="ai-model-selector-body">
+            <label class="ai-model-field">
+                <span class="ai-model-field-label">供应商</span>
+                <select class="ai-model-select"
+                        @bind="_selectedProviderId"
+                        @bind:after="OnProviderChanged"
+                        disabled="@_busy">
+                    @foreach (AiProviderDefinition provider in _candidates)
+                    {
+                        <option value="@provider.Id">@provider.DisplayName</option>
+                    }
+                </select>
+            </label>
+
+            <label class="ai-model-field">
+                <span class="ai-model-field-label">模型</span>
+                <select class="ai-model-select"
+                        @bind="_selectedModelId"
+                        @bind:after="OnModelChanged"
+                        disabled="@(_busy || _models.Count == 0)">
+                    @foreach (AiModelDefinition model in _models)
+                    {
+                        <option value="@model.Id">@model.Label</option>
+                    }
+                </select>
+            </label>
+
+            <div class="ai-model-actions">
+                <button type="button"
+                        class="ai-model-button ai-model-button-primary"
+                        @onclick="ApplyAsync"
+                        disabled="@IsApplyDisabled">应用为当前模型</button>
+                <button type="button"
+                        class="ai-model-button"
+                        @onclick="ClearAsync"
+                        disabled="@(_busy || !Manager.HasActiveModel)">清除</button>
+            </div>
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_statusMessage))
+    {
+        <p class="ai-model-status @(_isError ? "ai-model-status-error" : "ai-model-status-ok")">@_statusMessage</p>
+    }
+</section>

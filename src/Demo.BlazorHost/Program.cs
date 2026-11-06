@@ -1,5 +1,6 @@
 using AI.Extension.Blazor;
 using AI.Extension.Mcp;
+using AI.Extension.Providers;
 using Demo.BlazorHost.Components;
 using Demo.Core;
 using Microsoft.Extensions.DependencyInjection;
@@ -34,7 +35,8 @@ app.MapRazorComponents<App>()
 
 // ---------------------------------------------------------------------------
 // 关键启动顺序（与 Demo.Host 的 StartDemoHostAsync 同构）：
-// 1) 先启动宿主：进程内 MCP Server 作为 IHostedService 随宿主一起启动；
+// 0) 先加载供应商配置：页面渲染/AiModelSelector 读取 Providers 都依赖它（首次运行会写内置预设）；
+// 1) 启动宿主：进程内 MCP Server 作为 IHostedService 随宿主一起启动；
 // 2) 再连接进程内 MCP Client 并拉取工具清单（ChatSession 依赖 bridge.Tools）；
 // 3) 最后进入运行循环，开始接受 HTTP 请求。
 //
@@ -42,6 +44,8 @@ app.MapRazorComponents<App>()
 // 而 Kestrel 会抛 InvalidOperationException「Server has already started.」。
 // 所以这里用 WaitForShutdownAsync 阻塞到进程退出，语义等价于「StartAsync 之后的 Run」。
 // ---------------------------------------------------------------------------
+await app.Services.GetRequiredService<IAiProviderManager>().InitializeAsync();
+
 await app.StartAsync();
 
 McpServerBridge bridge = app.Services.GetRequiredService<McpServerBridge>();

@@ -63,10 +63,13 @@
         </p>
     </section>
 
-    <section class="chat-card">
-        <ChatPanel Title="AI 订单助手"
-                   Placeholder="例如：帮我统计一下现在的订单情况 / 看看 SO-1002 / 取消 SO-1001，原因是客户重复下单" />
-    </section>
+    <div class="chat-column">
+        <AiModelSelector />
+        <section class="chat-card">
+            <ChatPanel Title="AI 订单助手"
+                       Placeholder="例如：帮我统计一下现在的订单情况 / 看看 SO-1002 / 取消 SO-1001，原因是客户重复下单" />
+        </section>
+    </div>
 </main>
 
 <section class="card tools-card">

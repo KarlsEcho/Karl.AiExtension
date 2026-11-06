@@ -137,8 +137,11 @@ Button.Click → AsyncRelayCommand → OrdersViewModel.CancelAsync()
 | `IOrderService` | Singleton → 指向同一个 ViewModel | 保证 UI 与 AI 看到同一份状态 |
 | `OrderServiceBridge` | Transient（`[AiContractBinding]` 上可配） | 无状态转发器，避免捕获依赖问题 |
 | `AI.Extension.Mcp.McpServerBridge` | Singleton | 进程内 MCP 会话 |
-| `IChatClient` | Singleton | 真实模型或离线客户端 |
-| `ChatSession` | Singleton | 串行化对话（内部 `SemaphoreSlim`） |
+| `IAiProviderStore` | Singleton | 供应商配置持久化（JSON + DPAPI 加密）；测试/绿色版用 `InMemoryAiProviderStore` |
+| `IAiProviderManager` | Singleton | 供应商与模型的增删改查、当前模型切换、连通性测试、模型发现 |
+| `IChatClient` | Singleton | 兜底客户端（未配置任何可用供应商时使用；Demo 注入离线规则客户端） |
+| `IAiChatClientAccessor` | Singleton | 按当前供应商动态创建并缓存 `IChatClient`，切换时释放旧实例并通知 UI |
+| `ChatSession` | Singleton | 串行化对话（内部 `SemaphoreSlim`），每轮通过 accessor 取当前客户端 |
 | `IUiDispatcher` | Singleton | WPF：`WpfUiDispatcher`；无界面：`ImmediateUiDispatcher` |
 | `IUiActivityTracker` | Singleton | 环形缓冲，容量 200 |
 
@@ -165,7 +168,42 @@ Button.Click → AsyncRelayCommand → OrdersViewModel.CancelAsync()
 
 ---
 
-## 7. 与最初设计对话的对应关系
+## 7. 供应商与模型管理
+
+### 7.1 分层
+
+```
+Abstractions/Providers/   AiProviderDefinition / AiModelDefinition / IAiProviderStore / IAiProviderManager（零第三方依赖）
+Core/Providers/           JsonAiProviderStore（DPAPI 加密）+ AiProviderManager（校验/切换）+ AiProviderPresets + AiProviderClientFactory
+Core/Chat/                IAiChatClientAccessor / AiChatClientAccessor（把「当前供应商」解析成 IChatClient）
+WPF/Providers/            ProviderManagerViewModel + AiProviderManagerPanel（增删改查/测试连接/拉取模型/设为当前）
+Blazor                    AiModelSelector（供应商/模型下拉 + 切换，复用同一 IAiProviderManager）
+```
+
+### 7.2 状态与持久化
+
+- 状态 = 供应商列表 + 当前供应商 Id + 当前模型 Id，存放于 `%APPDATA%\Karl.AiExtension\providers.json`（`KARL_AI_DATA_DIR` 可覆盖目录）；
+- 写入前 API Key 经 `IAiSecretProtector` 处理：Windows 用 DPAPI（CurrentUser 作用域）加密为 `dpapi:<base64>`，其他平台降级为 `plain:<base64>`（仅混淆，生产需替换为平台密钥链）；
+- 文件写入采用「临时文件 + 原子替换」，配置损坏时按空状态启动而不是崩溃；
+- 首次运行写入内置预设（DeepSeek / OpenAI / 阿里云百炼 / 本地 Ollama，默认禁用、无 Key），环境变量 `KARL_AI_*` / `OPENAI_*` 存在时额外导入一个「环境变量导入」供应商并设为当前。
+
+### 7.3 运行时切换
+
+```
+用户选择供应商/模型
+  → IAiProviderManager.SetActiveAsync(providerId, modelId)   // 校验：存在/已启用/有模型
+  → 持久化 + 触发 Changed
+  → AiChatClientAccessor 释放旧 IChatClient，按新配置重建（OpenAIClient + 模型 Id）
+  → ChatSession 下一轮对话自动使用新客户端（无需重启）
+```
+
+- 未配置任何可用供应商时，accessor 返回兜底客户端（Demo 注入离线规则客户端），保证应用永远可用；
+- 供应商被禁用/删除时，管理器自动切换到下一个可用供应商；「清除当前模型」是显式回到未配置状态；
+- 创建客户端失败（Endpoint/Key 非法）时 accessor 退回兜底并给出「供应商配置无效」的展示文本。
+
+---
+
+## 8. 与最初设计对话的对应关系
 
 | 设计对话中的点 | 本骨架的落点 |
 | --- | --- |
@@ -186,7 +224,7 @@ Button.Click → AsyncRelayCommand → OrdersViewModel.CancelAsync()
 
 ---
 
-## 8. 测试策略
+## 9. 测试策略
 
 | 测试 | 覆盖 |
 | --- | --- |
@@ -195,4 +233,6 @@ Button.Click → AsyncRelayCommand → OrdersViewModel.CancelAsync()
 | `McpRoundTripTests` | 真实 Host + 真实 MCP 协议：工具枚举、参数校验错误、取消订单写回仓储、对话驱动工具、UI 上下文注入 |
 | `OrdersViewModelTests` | 契约实现的业务行为（过滤、取消规则、统计）与 UI 日志记录 |
 | `UiActivityTrackerTests` | 环形缓冲容量/顺序/截断、上下文摘要格式 |
+| `ProviderManagementTests` | 供应商配置加密落盘/读取、校验（启用必须有 Key）、规范化、当前模型切换与 accessor 重建、删除当前供应商后的回退 |
+
 

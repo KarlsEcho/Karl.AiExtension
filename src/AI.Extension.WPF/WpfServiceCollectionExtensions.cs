@@ -1,5 +1,6 @@
 using AI.Extension.WPF.Chat;
 using AI.Extension.WPF.Diagnostics;
+using AI.Extension.WPF.Providers;
 using AI.Extension.WPF.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -26,7 +27,9 @@ public static class WpfServiceCollectionExtensions
         services.AddSingleton<IUiDispatcher, WpfUiDispatcher>();
 
         services.TryAddSingleton<ChatPanelViewModel>();
+        services.TryAddSingleton<ProviderManagerViewModel>();
         services.TryAddSingleton<AiDiagnosticsViewModel>();
         return services;
     }
 }
+

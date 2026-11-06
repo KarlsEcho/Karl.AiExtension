@@ -25,6 +25,7 @@ AI 操作：    自然语言 ──► 大模型 ──► MCP 工具 ──┘
 协议：       微软 MCP C# SDK（[McpServerTool] / [Description] / JSON Schema）
 语义隔离：   Demo.MCP（开发者手写的轻量封装：改名、扁平入参、校验、异常兜底、权限拦截）
 上下文：     UI 活动环形日志，AI 被唤醒时读取（不主动推送）
+供应商：     AI.Extension.Core.Providers（多供应商/模型列表/DPAPI 加密持久化/运行时切换 IChatClient）
 ```
 
 关键设计取舍：
@@ -36,6 +37,7 @@ AI 操作：    自然语言 ──► 大模型 ──► MCP 工具 ──┘
 | MCP Server 跑在应用进程内（内存管道） | 工具要直接访问应用单例（ViewModel/仓储），又要保留 MCP 协议边界；不需要起子进程 |
 | UI 线程调度抽象 `IUiDispatcher` | 工具调用在后台线程，ViewModel 绑定在 UI 线程；抽象后同一套 ViewModel 可被 WPF / Blazor 复用 |
 | UI 历史用环形日志 + 唤醒时读取 | 主动推送会 Token 爆炸、噪音淹没有效信息，还会拖垮 UI 线程 |
+| 供应商/模型与「对话行为」分离 | 供应商配置要能持久化、加密、运行时切换；系统提示等对话行为与它无关，混在一起会导致每次换模型都要重配提示词 |
 
 ---
 
@@ -45,8 +47,8 @@ AI 操作：    自然语言 ──► 大模型 ──► MCP 工具 ──┘
 src/
   AI.Extension.Abstractions/            绑定声明特性（[AiContractBinding] / [AiMethod]）、桥接接口、UI 抽象
   AI.Extension.Abstractions.Generator/  Roslyn 增量源生成器（按 MCP 层的绑定声明产出桥接）
-  AI.Extension.Core/                    会话核心：IChatClient 工具循环、进程内 MCP 宿主、UI 日志、MVVM 基类
-  AI.Extension.WPF/                     WPF 外壳：聊天面板、工具/契约诊断面板、WpfUiDispatcher
+  AI.Extension.Core/                    会话核心：工具循环、进程内 MCP 宿主、UI 日志、供应商/模型管理、MVVM 基类
+  AI.Extension.WPF/                     WPF 外壳：聊天面板、模型与供应商面板、工具/契约诊断面板、WpfUiDispatcher
   AI.Extension.Blazor/                  Blazor 外壳（Razor 组件，与 WPF 共享 ChatSession）
   Demo.Contract/                        纯业务契约（IOrderService），零实现、零 AI 依赖
   Demo.Model/                           领域模型 + 内存仓储
@@ -124,18 +126,16 @@ dotnet run --project src/Demo.Host -- --stdio
 
 可在 Claude Desktop / VS Code Copilot 的 `mcp.json` 里指到该命令，验证「同一套工具既能被应用内 AI 用，也能被任意 MCP 宿主用」。
 
-### 3.4 Blazor 宿主
+### 3.5 接入真实大模型（供应商 / 模型管理）
 
-```powershell
-dotnet run --project src/Demo.BlazorHost   # http://localhost:5180
-```
+不写配置文件也能用：WPF 右侧「**模型与供应商**」页签内置了 DeepSeek / OpenAI / 阿里云百炼 / 本地 Ollama 预设。
 
-订单表格 + AI 聊天面板 + 工具清单，复用同一套 `ChatSession` / `Demo.Core` / 进程内 MCP。
-与 WPF 的差异（线程调度、`SynchronizationContext`、数据绑定、预渲染）与已知限制见 [`docs/BLAZOR.md`](docs/BLAZOR.md)。
+1. 选中供应商 → 填 API Key（落盘时用 Windows DPAPI 加密）→ 勾选「启用」→「保存」；
+2. 需要的话点「测试连接」「拉取模型」自动补全模型列表；
+3. 点「设为当前模型」立即生效（无需重启）；「清除当前模型」回到离线兜底。
 
-### 3.5 接真实大模型
-
-离线模式只是为了开箱即跑；配置以下环境变量后重启应用即切换为真实模型（任意 OpenAI 兼容端点）：
+配置保存在 `%APPDATA%\Karl.AiExtension\providers.json`（可用 `KARL_AI_DATA_DIR` 改目录），WPF / Blazor / 控制台共享同一份。
+也支持免配置文件的环境变量启动（首次运行会导入成一个名为「环境变量导入」的供应商）：
 
 ```powershell
 $env:KARL_AI_ENDPOINT = "https://api.deepseek.com/v1"
@@ -143,8 +143,16 @@ $env:KARL_AI_API_KEY  = "sk-..."
 $env:KARL_AI_MODEL    = "deepseek-chat"
 ```
 
-未配置时 `AI.Extension.Core` 会退回「未配置提示客户端」，`Demo.Core` 则使用离线规则客户端，保证骨架永远可运行。
+未配置任何可用供应商时，`IChatClientAccessor` 会退回兜底客户端（`Demo.Core` 注入离线规则客户端），保证骨架永远可运行。
 
+### 3.6 Blazor 宿主
+
+```powershell
+dotnet run --project src/Demo.BlazorHost   # http://localhost:5180
+```
+
+订单表格 + AI 聊天面板 + 工具清单 +（供应商/模型切换），复用同一套 `ChatSession` / `Demo.Core` / 进程内 MCP 与同一份供应商配置。
+与 WPF 的差异（线程调度、`SynchronizationContext`、数据绑定、预渲染）与已知限制见 [`docs/BLAZOR.md`](docs/BLAZOR.md)。
 ---
 
 ## 4. 新增一个 AI 能力（5 步）
@@ -167,6 +175,7 @@ $env:KARL_AI_MODEL    = "deepseek-chat"
 ## 5. 当前边界（骨架阶段的诚实说明）
 
 - **流式输出**：会话目前是「一次完整回复」，`ChatSession` 预留了工具轨迹上报，但未做逐 Token 推送；`IChatClient` 支持流式，接入即可。
+- **供应商管理**：内置 4 个 OpenAI 兼容预设，支持运行时增删改、测试连接、拉取模型、切换当前模型；API Key 用 Windows DPAPI 加密后落盘（非 Windows 平台降级为 Base64 混淆，需换成平台密钥链）。
 - **人工确认（Human-in-the-loop）**：敏感工具目前只做参数校验与日志，未做「AI 请求 → 原生弹窗确认」的拦截；`ChatSession` 的工具循环是显式写的，加这一步只需在调用前插入一次用户确认。
 - **权限模型**：没有 RBAC，只有工具级校验。
 - **契约层零 AI 依赖**：`Demo.Contract` 不引用 `AI.Extension.Abstractions`（见 csproj），「暴露成哪些工具、工具名、描述」全部在 `Demo.MCP` 声明与实现。

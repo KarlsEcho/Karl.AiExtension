@@ -10,7 +10,7 @@ Blazor 分支的目标不是「另写一套 AI 界面」，而是验证架构里
 
 | 项目 | 作用 |
 | --- | --- |
-| `src/AI.Extension.Blazor` | 可复用 Blazor 外壳：`ChatPanel` / `ToolCallTraceList` / `AddAiExtensionBlazor` / 样式 |
+| `src/AI.Extension.Blazor` | 可复用 Blazor 外壳：`ChatPanel` / `AiModelSelector` / `ToolCallTraceList` / `AddAiExtensionBlazor` / 样式 |
 | `src/Demo.BlazorHost` | Blazor Server 演示宿主：订单表格 + AI 聊天面板 + MCP 工具轨迹，固定端口 `http://localhost:5180` |
 
 ## 一、复用了什么
@@ -41,6 +41,23 @@ Blazor 外壳**没有**任何自己的 MCP 客户端、工具循环或业务逻�
 `ToolCallTraceList` 是独立的小组件，只接收 `IReadOnlyList<AiToolCallTrace>`，
 因此 WPF 之外的其他 Blazor 宿主（Server / WebAssembly 上的纯展示）都能直接复用。
 
+### `AiModelSelector`（`src/AI.Extension.Blazor/AiModelSelector.razor`）
+
+把 Core 的「供应商/模型管理」暴露成 Blazor 可用的切换器，**不重新实现配置读写**：
+
+- 通过 `[Inject] IAiProviderManager Manager` 读取 `Providers` / `ActiveModelLabel`；
+- 下拉「供应商」只列 **`Enabled == true` 且 `Models.Count > 0`** 的候选（与管理器内部的
+  `EnsureActiveConsistentLocked()` 口径一致），「模型」下拉联动该供应商的模型列表；
+- 「应用为当前模型」调用 `Manager.SetActiveAsync(providerId, modelId)`，「清除」调用
+  `SetActiveAsync(null, null)`。`SetActiveAsync` 在未启用 / 模型不存在 / 管理器未初始化时会抛异常，
+  组件用 try/catch 把错误文本显示在下方，不让异常冒泡到 circuit；
+- 订阅 `IAiProviderManager.Changed`，回调里统一 `InvokeAsync(StateHasChanged)` 封送回渲染上下文
+  （事件可能来自非渲染线程）；预渲染实例与交互实例都会 `OnInitialized`，由 `Dispose` 成对取消订阅；
+- 没有任何可用供应商时显示空状态提示。Blazor 侧**不提供编辑表单**，配置请到 WPF「模型与供应商」页填写，
+  或通过 `KARL_AI_API_KEY` / `KARL_AI_MODEL` / `KARL_AI_ENDPOINT` 环境变量首次启动导入；
+- 样式：`wwwroot/css/ai-model-selector.css`，消费方在宿主页面引入
+  `_content/AI.Extension.Blazor/css/ai-model-selector.css`。
+
 ### `AddAiExtensionBlazor(this IServiceCollection)`
 
 ```csharp
@@ -62,9 +79,21 @@ builder.Services.AddRazorComponents().AddInteractiveServerComponents()
 builder.Build()
 app.UseStaticFiles() / UseAntiforgery() / MapRazorComponents<App>()...
 await app.StartAsync()                         // MCP Server 作为 IHostedService 随宿主启动
+await app.Services.GetRequiredService<IAiProviderManager>().InitializeAsync()  // 页面渲染前加载供应商配置
 await app.Services.GetRequiredService<McpServerBridge>().ConnectAsync()   // 拉取工具清单
 await app.WaitForShutdownAsync()               // 等价于 Run() 的「保持进程存活」
 ```
+
+### 供应商初始化必须在页面首次渲染前完成
+
+`AiModelSelector` 直接读 `IAiProviderManager.Providers`，而未初始化的管理器会拒绝
+`SetActiveAsync` / `SaveAsync` / `RemoveAsync`（抛「供应商管理器尚未初始化」）。
+所以 `Program.cs` 在 `StartAsync()` 之后、`ConnectAsync()` 之前补了一次
+`InitializeAsync()`（幂等，与 `Demo.Core.StartDemoHostAsync` 的顺序一致）。
+
+首次运行时它会写入 4 个内置供应商预设（全部 `Enabled = false`、无 API Key），
+因此新装环境下 Blazor 页面会显示「暂无可用供应商」的空状态——这是**预期行为**，
+不是组件故障；到 WPF 的「模型与供应商」页启用并填好 Key 后，Blazor 页面刷新即可看到候选。
 
 ### 为什么最后不是字面上的 `app.Run()`
 
@@ -120,18 +149,67 @@ dotnet run --project src/Demo.BlazorHost
 
 # 3) 另开一个终端验证
 $r = Invoke-WebRequest http://localhost:5180 -UseBasicParsing
-$r.StatusCode               # 200
-$r.Content.Contains('SO-1002')   # True：订单表格已在预渲染 HTML 中
+$r.StatusCode                       # 200
+$r.Content.Contains('SO-1002')      # True：订单表格已在预渲染 HTML 中
+$r.Content.Contains('ai-model-selector')  # True：供应商/模型切换器已进入预渲染 HTML
+$r.Content.Contains('当前模型')      # True
 ```
 
 验证要点：
 
-- 首页 HTML 含订单号（SO-1001 ~ SO-1005）、`ai-chat-panel`、工具轨迹区域、`order_*` 工具名；
-- `/_framework/blazor.web.js` 与 `_content/AI.Extension.Blazor/css/ai-chat-panel.css` 均 200，说明 circuit 与样式可加载；
+- 首页 HTML 含订单号（SO-1001 ~ SO-1005）、`ai-chat-panel`、`ai-model-selector`、工具轨迹区域、`order_*` 工具名；
+- 首页 HTML 的「当前模型：」初始为「未配置（离线演示）」，并显示「暂无可用供应商」空状态
+  （内置预设默认全部未启用）；到 WPF 启用并填写 Key 后刷新页面，下拉出现候选；
+- `/_framework/blazor.web.js`、`_content/AI.Extension.Blazor/css/ai-chat-panel.css`、
+  `_content/AI.Extension.Blazor/css/ai-model-selector.css` 均 200，说明 circuit 与样式可加载；
 - 页面交互后可以试：`帮我统计一下现在的订单情况`、`看看 SO-1002 这个订单`、`取消 SO-1001，原因是客户重复下单`，
   工具轨迹会实时出现，取消订单后左侧表格会随 `PropertyChanged` 自动刷新。
 
-## 七、排障记录
+## 七、供应商/模型切换
+
+Blazor 侧不重复实现「供应商配置」这件事：配置的增删改查、Key 加密落盘、连通性测试都在
+`AI.Extension.Core` 的 `IAiProviderManager`（默认实现 `AiProviderManager` + `JsonAiProviderStore`）里，
+WPF 的「模型与供应商」页与 Blazor 的 `AiModelSelector` 只是同一份能力的两个外壳：
+
+| 能力 | 实现位置 | Blazor 侧用法 |
+| --- | --- | --- |
+| 供应商/模型持久化 | `AI.Extension.Core/Providers/JsonAiProviderStore` | 间接使用（同一份文件） |
+| 运行时可切换 + 变更事件 | `IAiProviderManager` 单例 | `[Inject]` + 订阅 `Changed` |
+| 当前客户端重建 | `IAiChatClientAccessor`（订阅 `IAiProviderManager.Changed` 自动重建） | 无需改动，`ChatSession` 自动用新模型 |
+| 配置编辑表单 | 仅 WPF「模型与供应商」页 | Blazor 只做「切换」，不做编辑 |
+
+关键行为：
+
+1. **共享配置**：WPF 与 Blazor 读写的都是 `%APPDATA%\Karl.AiExtension\providers.json`
+   （API Key 由 `IAiSecretProtector` 用 Windows DPAPI 加密）。在 WPF 启用供应商后刷新 Blazor 页面即可看到候选，
+   无需重启 Blazor 宿主；反过来在 Blazor 切换当前模型也会写回同一份文件。
+2. **候选口径**：只有 `Enabled == true` 且 `Models.Count > 0` 的供应商出现在下拉里；
+   `SetActiveAsync` 对未启用供应商会抛 `InvalidOperationException`，组件把异常消息展示成红色错误文本。
+3. **切换后的客户端**：`SetActiveAsync` 触发 `IAiProviderManager.Changed` → `AiChatClientAccessor`
+   释放旧 `IChatClient` 并按新供应商/模型重建；`ChatSession` 下一次 `SendAsync` 就用新模型。
+   `AiModelSelector` 顶部「当前模型」同步显示 `ActiveModelLabel`（例如 `DeepSeek · deepseek-chat`）。
+4. **无 Key 仍可用**：没有激活模型时 `IAiChatClientAccessor.Current` 回退到注册时提供的兜底客户端
+   （Demo 里是 `DemoOfflineChatClient`，离线规则演示），聊天面板照常工作，只是标题里的模型显示
+   「未配置（离线演示）」；清空当前模型也会回到该兜底状态。
+5. **线程与预渲染**：`Changed` 可能来自非渲染线程，回调统一 `InvokeAsync(StateHasChanged)`；
+   预渲染实例与交互实例都会订阅一次，`Dispose` 取消订阅避免单例管理器泄漏组件。
+
+验证方法（在 WPF 侧准备好一个启用 + 填 Key 的供应商后）：
+
+```powershell
+# 宿主保持运行（窗口 A），另开窗口 B：
+$r = Invoke-WebRequest http://localhost:5180 -UseBasicParsing
+$r.Content.Contains('ai-model-selector')   # True
+$r.Content.Contains('暂无可用供应商')       # 未启用任何供应商时为 True
+
+# 切换到 WPF 的「模型与供应商」页启用供应商并填 Key → 刷新 Blazor 页面：
+#   - 「供应商」下拉出现该供应商，「模型」下拉出现其模型；
+#   - 点「应用为当前模型」→ 顶部「当前模型」变为「显示名 · 模型Id」；
+#   - 发一条聊天消息，`ChatSession` 使用新模型（网络失败时错误会回显在面板）；
+#   - 点「清除」→ 顶部回到「未配置（离线演示）」，聊天回退离线客户端。
+```
+
+## 八、排障记录
 
 - **`dotnet run` 启动即抛 `JsonSerializerOptions instance must specify a TypeInfoResolver setting before being marked as read-only`**：
   这是仓库里 `bin/` 残留了旧版 `Demo.MCP.dll`（旧版本未给工具序列化配置 `TypeInfoResolver`）导致的；

@@ -9,15 +9,22 @@ public sealed class ChatPanelViewModel : ObservableObject
 {
     private readonly ChatSession _session;
     private readonly IUiDispatcher _uiDispatcher;
+    private readonly IAiChatClientAccessor _chatClientAccessor;
     private string _inputText = string.Empty;
     private bool _isBusy;
     private string _statusText = "就绪：可以问我「帮我统计一下订单情况」";
 
     /// <summary>构造视图模型。</summary>
-    public ChatPanelViewModel(ChatSession session, IUiDispatcher uiDispatcher)
+    public ChatPanelViewModel(
+        ChatSession session,
+        IUiDispatcher uiDispatcher,
+        IAiChatClientAccessor chatClientAccessor)
     {
         _session = session ?? throw new ArgumentNullException(nameof(session));
         _uiDispatcher = uiDispatcher ?? throw new ArgumentNullException(nameof(uiDispatcher));
+        _chatClientAccessor = chatClientAccessor ?? throw new ArgumentNullException(nameof(chatClientAccessor));
+
+        _chatClientAccessor.Changed += OnChatClientChanged;
 
         SendCommand = new AsyncRelayCommand(
             _ => SendAsync(),
@@ -26,6 +33,9 @@ public sealed class ChatPanelViewModel : ObservableObject
 
         _session.ToolCallCompleted += OnToolCallCompleted;
     }
+
+    /// <summary>当前生效的模型（供应商 · 模型）。</summary>
+    public string ActiveModelText => _chatClientAccessor.DisplayName;
 
     /// <summary>对话消息。</summary>
     public ObservableCollection<ChatMessageViewModel> Messages { get; } = new();
@@ -126,6 +136,22 @@ public sealed class ChatPanelViewModel : ObservableObject
         catch (Exception)
         {
             // 窗口关闭时 Dispatcher 可能已不可用，忽略即可
+        }
+    }
+
+    private async void OnChatClientChanged(object? sender, EventArgs e)
+    {
+        try
+        {
+            await _uiDispatcher.InvokeAsync(() =>
+            {
+                OnPropertyChanged(nameof(ActiveModelText));
+                return Task.CompletedTask;
+            }).ConfigureAwait(true);
+        }
+        catch (Exception)
+        {
+            // 窗口关闭时忽略
         }
     }
 }

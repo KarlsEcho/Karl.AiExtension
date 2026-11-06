@@ -1,6 +1,7 @@
 using System.Text;
 using AI.Extension.Chat;
 using AI.Extension.Mcp;
+using AI.Extension.Providers;
 using Demo.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -33,6 +34,9 @@ if (args.Contains("--stdio", StringComparer.OrdinalIgnoreCase))
 Console.WriteLine("=== Karl.AiExtension · 进程内 MCP 闭环验证 ===\n");
 
 using IHost host = await DemoBootstrap.StartDemoHostAsync();
+
+IAiProviderManager providerManager = host.Services.GetRequiredService<IAiProviderManager>();
+Console.WriteLine($"AI 供应商：{providerManager.Providers.Count} 个配置，当前模型：{providerManager.ActiveModelLabel}");
 
 McpServerBridge bridge = host.Services.GetRequiredService<McpServerBridge>();
 IReadOnlyList<McpClientTool> tools = bridge.Tools;
@@ -100,3 +104,4 @@ static string FormatToolResult(CallToolResult result)
 
     return result.IsError is true ? $"[工具返回错误]\n{text}" : text;
 }
+

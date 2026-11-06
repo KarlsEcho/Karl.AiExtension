@@ -1,0 +1,155 @@
+/*
+ * AI.Extension.Blazor · AiModelSelector 样式。
+ * 通过 Razor 类库静态资源提供：消费方在宿主页面引入
+ * <link rel="stylesheet" href="_content/AI.Extension.Blazor/css/ai-model-selector.css" />
+ */
+
+.ai-model-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 18px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.ai-model-selector-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 6px 16px;
+}
+
+.ai-model-selector-heading {
+    min-width: 0;
+}
+
+.ai-model-selector-title {
+    margin: 0;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.ai-model-selector-caption {
+    margin: 4px 0 0;
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.ai-model-current {
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.ai-model-current strong {
+    font-weight: 600;
+    color: #1d4ed8;
+}
+
+.ai-model-selector-body {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+}
+
+.ai-model-field {
+    display: flex;
+    flex: 1 1 180px;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 160px;
+}
+
+.ai-model-field-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: #64748b;
+}
+
+.ai-model-select {
+    padding: 7px 10px;
+    font: inherit;
+    font-size: 0.8125rem;
+    color: #0f172a;
+    background: #f8fafc;
+    border: 1px solid #d8e0ea;
+    border-radius: 8px;
+    outline: none;
+    cursor: pointer;
+}
+
+.ai-model-select:focus {
+    border-color: #93c5fd;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.ai-model-select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.ai-model-actions {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 8px;
+}
+
+.ai-model-button {
+    padding: 8px 14px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #334155;
+    background: #ffffff;
+    border: 1px solid #d8e0ea;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.ai-model-button:hover:not(:disabled) {
+    background: #f1f5f9;
+}
+
+.ai-model-button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.ai-model-button-primary {
+    color: #ffffff;
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+}
+
+.ai-model-button-primary:hover:not(:disabled) {
+    background: #1e40af;
+}
+
+.ai-model-empty {
+    margin: 0;
+    padding: 12px 14px;
+    font-size: 0.75rem;
+    line-height: 1.6;
+    color: #92400e;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 10px;
+}
+
+.ai-model-status {
+    margin: 0;
+    font-size: 0.75rem;
+}
+
+.ai-model-status-ok {
+    color: #15803d;
+}
+
+.ai-model-status-error {
+    color: #b91c1c;
+}

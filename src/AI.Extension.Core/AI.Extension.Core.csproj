@@ -16,6 +16,7 @@
     <PackageReference Include="Microsoft.Extensions.Options" />
     <PackageReference Include="ModelContextProtocol" />
     <PackageReference Include="OpenAI" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
   </ItemGroup>
 
   <ItemGroup>

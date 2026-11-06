@@ -240,7 +240,17 @@ code {
     border-top: 1px solid #eef2f7;
 }
 
+/* 右列：供应商/模型切换器 + 聊天面板。两者叠放在同一个弹性列里，聊天面板吃掉剩余高度。 */
+.chat-column {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+    min-height: 520px;
+}
+
 .chat-card {
+    flex: 1 1 auto;
     background: transparent;
     border: 0;
     box-shadow: none;

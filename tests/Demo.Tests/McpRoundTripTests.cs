@@ -121,7 +121,8 @@ public sealed class McpRoundTripTests
 
         public static async Task<DemoHostScope> StartAsync()
         {
-            IHost host = await DemoBootstrap.StartDemoHostAsync();
+            // 用内存存储隔离本机供应商配置，保证测试始终走离线规则客户端
+            IHost host = await DemoBootstrap.StartDemoHostAsync(providerStore: new AI.Extension.Providers.InMemoryAiProviderStore());
             var bridge = host.Services.GetRequiredService<McpServerBridge>();
             return new DemoHostScope(host, bridge);
         }
@@ -134,3 +135,4 @@ public sealed class McpRoundTripTests
         }
     }
 }
+

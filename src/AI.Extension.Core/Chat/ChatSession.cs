@@ -26,7 +26,7 @@ public sealed class ChatSession
         WriteIndented = false,
     };
 
-    private readonly IChatClient _chatClient;
+    private readonly IAiChatClientAccessor _chatClientAccessor;
     private readonly McpServerBridge _bridge;
     private readonly IUiActivityTracker _activityTracker;
     private readonly AiChatOptions _options;
@@ -35,12 +35,12 @@ public sealed class ChatSession
 
     /// <summary>构造会话。</summary>
     public ChatSession(
-        IChatClient chatClient,
+        IAiChatClientAccessor chatClientAccessor,
         McpServerBridge bridge,
         IUiActivityTracker activityTracker,
         AiChatOptions options)
     {
-        _chatClient = chatClient ?? throw new ArgumentNullException(nameof(chatClient));
+        _chatClientAccessor = chatClientAccessor ?? throw new ArgumentNullException(nameof(chatClientAccessor));
         _bridge = bridge ?? throw new ArgumentNullException(nameof(bridge));
         _activityTracker = activityTracker ?? throw new ArgumentNullException(nameof(activityTracker));
         _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -112,7 +112,7 @@ public sealed class ChatSession
                 ToolMode = ChatToolMode.Auto,
             };
 
-            ChatResponse response = await _chatClient
+            ChatResponse response = await _chatClientAccessor.Current
                 .GetResponseAsync(messages, chatOptions, cancellationToken)
                 .ConfigureAwait(false);
 
@@ -258,3 +258,4 @@ public sealed class ChatSession
             """;
     }
 }
+
