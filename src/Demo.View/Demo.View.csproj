@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Demo.View</RootNamespace>
+    <Description>Demo 的视图层：主窗口与订单视图，AI 面板来自 AI.Extension.WPF。</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Demo.ViewModel\Demo.ViewModel.csproj" />
+    <ProjectReference Include="..\AI.Extension.WPF\AI.Extension.WPF.csproj" />
+  </ItemGroup>
+
+</Project>

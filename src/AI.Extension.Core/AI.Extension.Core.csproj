@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>AI.Extension</RootNamespace>
+    <Description>AI Extension 运行时核心：会话、流式输出、MCP 进程内宿主、UI 上下文环形日志、MVVM 基础设施。</Description>
+    <IsPackable>true</IsPackable>
+    <PackageId>AI.Extension.Core</PackageId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.AI" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="ModelContextProtocol" />
+    <PackageReference Include="OpenAI" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AI.Extension.Abstractions\AI.Extension.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

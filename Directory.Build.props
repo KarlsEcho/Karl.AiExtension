@@ -1,0 +1,20 @@
+<Project>
+
+  <PropertyGroup>
+    <!-- 默认目标框架；WPF/Blazor/生成器等项目在自身 csproj 中覆盖 -->
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Deterministic>true</Deterministic>
+    <Company>Karl</Company>
+    <Product>Karl.AiExtension</Product>
+    <Version>0.1.0</Version>
+    <Authors>Karl</Authors>
+    <RepositoryType>git</RepositoryType>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <AnalysisLevel>latest</AnalysisLevel>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Demo.MCP</RootNamespace>
+    <Description>Demo 的 MCP 层：存放源生成器产出的桥接基础设施 + 开发者手写的轻量语义封装（[McpServerTool]）。</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="ModelContextProtocol" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 契约仅为编译期引用（桥接方法需要强类型），不向下游传递 -->
+    <ProjectReference Include="..\Demo.Contract\Demo.Contract.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\AI.Extension.Abstractions\AI.Extension.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 源码树中分析器不随 ProjectReference 传递，这里显式引入；打 NuGet 包后由 Abstractions 的 analyzers 目录自动提供 -->
+    <ProjectReference Include="..\AI.Extension.Abstractions.Generator\AI.Extension.Abstractions.Generator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

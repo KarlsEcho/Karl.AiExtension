@@ -1,0 +1,166 @@
+# Karl.AiExtension
+
+把「契约驱动 + 源生成器 + 微软 MCP C# SDK + 轻量语义封装」的桌面端 AI 扩展架构，落成一个**可以跑起来**的 .NET 10 解决方案骨架。
+
+> 目标不是做一个玩具 Demo，而是把架构里的每一条边界都变成真实代码：
+> UI 线程亲和性、MCP 进程内宿主、源生成器产物、契约/工具对齐、UI 上下文日志、工具调用轨迹。
+
+---
+
+## 1. 这套架构在解决什么
+
+传统桌面应用（WPF/WinForms/WinUI）接入 AI 的常见做法是：在 ViewModel 里拼 Prompt、写死 Function Calling JSON、或者用反射强扫 ViewModel 暴露工具。结果是 UI 语义被 AI 绑架、协议细节泄漏到业务层、存量代码难以 AI 化。
+
+本方案把职责切成四条互不污染的通路：
+
+```
+人类操作：   界面点击 ──► ViewModel / Command ──┐
+                                              ├──► 业务逻辑（同一套）
+AI 操作：    自然语言 ──► 大模型 ──► MCP 工具 ──┘
+
+契约：       Demo.Contract（只放接口 + 语义标注，零实现）
+基础设施：   AI.Extension.Abstractions.Generator（编译期把契约变成强类型桥接 + DI 注册）
+协议：       微软 MCP C# SDK（[McpServerTool] / [Description] / JSON Schema）
+语义隔离：   Demo.MCP（开发者手写的轻量封装：改名、扁平入参、校验、异常兜底、权限拦截）
+上下文：     UI 活动环形日志，AI 被唤醒时读取（不主动推送）
+```
+
+关键设计取舍：
+
+| 决策 | 原因 |
+| --- | --- |
+| 源生成器只生成「桥接基础设施」，不生成 `[McpServerTool]` | 工具语义必须由人写：ViewModel 的语义（操作）≠ 给 AI 的语义（意图），中间必须有一层薄封装 |
+| JSON Schema / 工具注册交给微软 MCP C# SDK | 协议、参数反序列化、Schema 生成是 SDK 的强项，自己写只会引入 bug |
+| MCP Server 跑在应用进程内（内存管道） | 工具要直接访问应用单例（ViewModel/仓储），又要保留 MCP 协议边界；不需要起子进程 |
+| UI 线程调度抽象 `IUiDispatcher` | 工具调用在后台线程，ViewModel 绑定在 UI 线程；抽象后同一套 ViewModel 可被 WPF / Blazor 复用 |
+| UI 历史用环形日志 + 唤醒时读取 | 主动推送会 Token 爆炸、噪音淹没有效信息，还会拖垮 UI 线程 |
+
+---
+
+## 2. 项目结构
+
+```
+src/
+  AI.Extension.Abstractions/            契约标注特性、桥接接口、UI 抽象（IUiActivityTracker / IUiDispatcher）
+  AI.Extension.Abstractions.Generator/  Roslyn 增量源生成器（扫描引用程序集里的 [AiContract]）
+  AI.Extension.Core/                    会话核心：IChatClient 工具循环、进程内 MCP 宿主、UI 日志、MVVM 基类
+  AI.Extension.WPF/                     WPF 外壳：聊天面板、工具/契约诊断面板、WpfUiDispatcher
+  AI.Extension.Blazor/                  Blazor 外壳（Razor 组件，与 WPF 共享 ChatSession）
+  Demo.Contract/                        面向 AI 的契约（IOrderService）
+  Demo.Model/                           领域模型 + 内存仓储
+  Demo.ViewModel/                       OrdersViewModel：实现契约，UI 与 AI 共用的业务入口
+  Demo.MCP/                             手写语义封装 OrderTools（[McpServerToolType]）+ 生成器产出的桥接
+  Demo.Core/                            组合根：AddDemoCore() / AddDemoCoreForWpf()（Swagger 式注册）
+  Demo.View/                            WPF 视图（MainWindow）
+  Demo.App/                             WPF 宿主入口（最薄的一层）
+  Demo.Host/                            控制台宿主：闭环验证 + `--stdio` 标准 MCP Server
+tests/
+  AI.Extension.Abstractions.Generator.Tests/  生成器单测（CSharpGeneratorDriver 驱动）
+  Demo.Tests/                                  生成链路、MCP 闭环、ViewModel、UI 日志测试
+docs/
+  ARCHITECTURE.md                        依赖图、时序、生成规则、扩展指引
+  BLAZOR.md                              Blazor 分支说明（由 Blazor 分支实现者维护）
+```
+
+依赖方向（箭头表示「引用」）：
+
+```
+Demo.App ──► Demo.Core ──► AI.Extension.WPF ──► AI.Extension.Core ──► AI.Extension.Abstractions
+   │             │                                     ▲                     ▲
+   │             ├──► Demo.MCP ──► Demo.Contract ──────┘                     │
+   │             ├──► Demo.ViewModel ──► Demo.Contract                        │
+   │             └──► Demo.Model                                              │
+   └──► Demo.View ──► Demo.ViewModel / AI.Extension.WPF                      │
+                                                                             │
+Demo.MCP 编译期还引用 AI.Extension.Abstractions.Generator（Analyzer）─────────┘
+```
+
+---
+
+## 3. 快速开始
+
+前置：.NET 10 SDK（本仓库用 10.0.402 验证）。
+
+```powershell
+dotnet build                                  # 构建全部项目
+dotnet test                                   # 生成器 + 业务/闭环测试
+```
+
+### 3.1 看闭环：控制台宿主（推荐先跑这个）
+
+```powershell
+dotnet run --project src/Demo.Host
+```
+
+它会：建容器 → 启动进程内 MCP Server → 连接进程内 MCP Client → 列出 4 个工具 → 直接调用工具 → 用离线规则模型走 3 轮完整对话（统计 / 查详情 / 取消订单），并打印工具调用轨迹。
+
+### 3.2 看界面：WPF 宿主
+
+```powershell
+dotnet run --project src/Demo.App
+```
+
+左侧是传统订单表格（人类路径），右侧是 AI 面板（Agent 路径）。在右栏输入「帮我统计一下现在的订单情况」「看看 SO-1002」「取消 SO-1001，原因是客户重复下单」，可以看到：
+
+- AI 调用 MCP 工具，工具调用轨迹实时显示；
+- 工具最终走 `OrdersViewModel`，**左侧表格同步变化**（AI 与 UI 共用同一套业务逻辑）；
+- 「工具与契约」页签展示源生成器产出的契约清单、MCP 实际暴露的工具、以及 UI 上下文环形日志。
+
+无界面自检（CI 可用）：
+
+```powershell
+src\Demo.App\bin\Debug\net10.0-windows\Demo.App.exe --smoke
+# 结果写入同目录 smoke.log
+```
+
+### 3.3 把工具暴露给外部 MCP 宿主（stdio）
+
+```powershell
+dotnet run --project src/Demo.Host -- --stdio
+```
+
+可在 Claude Desktop / VS Code Copilot 的 `mcp.json` 里指到该命令，验证「同一套工具既能被应用内 AI 用，也能被任意 MCP 宿主用」。
+
+### 3.4 接真实大模型
+
+离线模式只是为了开箱即跑；配置以下环境变量后重启应用即切换为真实模型（任意 OpenAI 兼容端点）：
+
+```powershell
+$env:KARL_AI_ENDPOINT = "https://api.deepseek.com/v1"
+$env:KARL_AI_API_KEY  = "sk-..."
+$env:KARL_AI_MODEL    = "deepseek-chat"
+```
+
+未配置时 `AI.Extension.Core` 会退回「未配置提示客户端」，`Demo.Core` 则使用离线规则客户端，保证骨架永远可运行。
+
+---
+
+## 4. 新增一个 AI 能力（5 步）
+
+以「客户管理」为例：
+
+1. **写契约**：在 `Demo.Contract` 加接口，方法上标 `[AiTool("给 AI 看的描述", Name = "customer_search")]`；
+2. **实现契约**：在 `Demo.ViewModel` 里实现接口（这就是 UI 与 AI 共用的业务入口）；
+3. **注册实现**：在 `Demo.Core` 的 `AddDemoDomain()` 里把接口映射到实现；
+4. **生成桥接**：编译即可——生成器自动产出 `CustomerServiceBridge` 并把它加进 `AddAiContractBridges()`；
+5. **写语义封装**：在 `Demo.MCP` 加一个 `[McpServerToolType]` 类，方法上标 `[McpServerTool(Name = "customer_search")]` + `[Description]`，方法体内调用 `CustomerServiceBridge`。
+
+不需要手写任何 MCP 协议代码，也不需要手写 JSON Schema。
+
+---
+
+## 5. 当前边界（骨架阶段的诚实说明）
+
+- **流式输出**：会话目前是「一次完整回复」，`ChatSession` 预留了工具轨迹上报，但未做逐 Token 推送；`IChatClient` 支持流式，接入即可。
+- **人工确认（Human-in-the-loop）**：敏感工具目前只做参数校验与日志，未做「AI 请求 → 原生弹窗确认」的拦截；`ChatSession` 的工具循环是显式写的，加这一步只需在调用前插入一次用户确认。
+- **权限模型**：没有 RBAC，只有工具级校验。
+- **生成器增量性能**：当前用 `CompilationProvider` 全量扫描（为了能看到其他程序集里的契约），对契约规模大的仓库可优化为「按程序集分组 + 缓存」。
+- **Blazor**：独立分支，见 `docs/BLAZOR.md`。
+- **`Demo.MCP` 对 `Demo.Contract` 的引用是编译期引用**：强类型桥接必须能看见契约类型。若要求 `Demo.MCP` 完全不引用契约程序集，可把桥接生成到独立的 `Demo.Contract.Generated` 程序集，MCP 只依赖该程序集 + Abstractions。
+
+---
+
+## 6. 设计文档
+
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)：依赖图、调用时序、源生成器规则、DI 生命周期、线程模型、扩展指引
+- [`docs/BLAZOR.md`](docs/BLAZOR.md)：Blazor 分支如何复用同一套核心

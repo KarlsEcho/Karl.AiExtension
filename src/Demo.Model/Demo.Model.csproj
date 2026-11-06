@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Demo.Model</RootNamespace>
+    <Description>Demo 领域模型与演示用内存仓储（真实项目里替换为领域层/数据访问层）。</Description>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Demo.Core</RootNamespace>
+    <Description>组合根（Composition Root）：以 Swagger 式的扩展方法把 AI 外壳、业务、MCP 工具全部注册进 DI。</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.AI" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="ModelContextProtocol" />
+    <PackageReference Include="OpenAI" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AI.Extension.WPF\AI.Extension.WPF.csproj" />
+    <ProjectReference Include="..\AI.Extension.Core\AI.Extension.Core.csproj" />
+    <ProjectReference Include="..\Demo.MCP\Demo.MCP.csproj" />
+    <ProjectReference Include="..\Demo.ViewModel\Demo.ViewModel.csproj" />
+    <ProjectReference Include="..\Demo.Contract\Demo.Contract.csproj" />
+    <ProjectReference Include="..\Demo.Model\Demo.Model.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Demo.Contract</RootNamespace>
+    <Description>面向 AI 的契约层：只放接口与语义标注，不含任何实现。源生成器据此产出 MCP 基础设施。</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Demo.Model\Demo.Model.csproj" />
+    <ProjectReference Include="..\AI.Extension.Abstractions\AI.Extension.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

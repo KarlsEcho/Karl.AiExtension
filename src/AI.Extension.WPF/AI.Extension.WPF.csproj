@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>AI.Extension.WPF</RootNamespace>
+    <Description>AI Extension 的 WPF 外壳：聊天面板、工具调用可视化、UI 线程调度实现。</Description>
+    <IsPackable>true</IsPackable>
+    <PackageId>AI.Extension.WPF</PackageId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AI.Extension.Core\AI.Extension.Core.csproj" />
+  </ItemGroup>
+
+</Project>

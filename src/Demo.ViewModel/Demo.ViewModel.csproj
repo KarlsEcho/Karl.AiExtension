@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Demo.ViewModel</RootNamespace>
+    <Description>Demo 视图模型层：实现 Demo.Contract，同时是 WPF 界面与 AI 工具共同的业务入口。</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Demo.Contract\Demo.Contract.csproj" />
+    <ProjectReference Include="..\Demo.Model\Demo.Model.csproj" />
+    <ProjectReference Include="..\AI.Extension.Core\AI.Extension.Core.csproj" />
+  </ItemGroup>
+
+</Project>
