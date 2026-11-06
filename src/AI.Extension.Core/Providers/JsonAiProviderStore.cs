@@ -84,13 +84,39 @@ public sealed class JsonAiProviderStore : IAiProviderStore
             }
 
             string json = JsonSerializer.Serialize(ToDto(state), SerializerOptions);
-            string temporaryPath = _filePath + ".tmp";
-            await File.WriteAllTextAsync(temporaryPath, json, cancellationToken).ConfigureAwait(false);
-            File.Move(temporaryPath, _filePath, overwrite: true);
+
+            // 优先「临时文件 + 原子替换」；某些终端安全软件/只读漫游配置会拦截临时文件写入，
+            // 此时降级为直接覆盖目标文件，避免「写不了配置」直接拖死应用启动。
+            string temporaryPath = _filePath + ".new";
+            try
+            {
+                await File.WriteAllTextAsync(temporaryPath, json, cancellationToken).ConfigureAwait(false);
+                File.Move(temporaryPath, _filePath, overwrite: true);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                TryDeleteFile(temporaryPath);
+                await File.WriteAllTextAsync(_filePath, json, cancellationToken).ConfigureAwait(false);
+            }
         }
         finally
         {
             _gate.Release();
+        }
+    }
+
+    private static void TryDeleteFile(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch
+        {
+            // 清理失败不影响主流程
         }
     }
 

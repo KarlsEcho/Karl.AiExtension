@@ -122,7 +122,7 @@ public sealed class AiProviderManager : IAiProviderManager
             }
             catch (Exception exception)
             {
-                _logger?.LogWarning(exception, "读取供应商配置失败，使用空配置启动。");
+                TryLogWarning(exception, "读取供应商配置失败，使用空配置启动。");
                 state = AiProviderState.Empty;
             }
 
@@ -153,8 +153,18 @@ public sealed class AiProviderManager : IAiProviderManager
                 _initialized = true;
             }
 
-            await PersistAsync(cancellationToken).ConfigureAwait(false);
-            _logger?.LogInformation("供应商配置已加载：{Count} 个供应商，当前模型 {Model}。", _providers.Count, ActiveModelLabel);
+            try
+            {
+                await PersistAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception persistException) when (persistException is IOException or UnauthorizedAccessException)
+            {
+                // 配置目录不可写（只读漫游/安全软件拦截）不应阻塞应用启动：
+                // 本次使用内存态配置继续运行，保存动作会在 UI 侧给出失败提示。
+                TryLogWarning(persistException, "供应商配置写入失败，使用内存态配置继续运行。");
+            }
+
+            TryLogInformation("供应商配置已加载：{Count} 个供应商，当前模型 {Model}。", _providers.Count, ActiveModelLabel);
         }
         finally
         {
@@ -310,7 +320,7 @@ public sealed class AiProviderManager : IAiProviderManager
         }
         catch (Exception exception)
         {
-            _logger?.LogWarning(exception, "测试供应商 {ProviderId} 连接失败。", providerId);
+            TryLogWarning(exception, $"测试供应商 {providerId} 连接失败。");
             return false;
         }
     }
@@ -540,6 +550,33 @@ public sealed class AiProviderManager : IAiProviderManager
         }
     }
 
+    /// <summary>
+    /// 安全日志：日志提供程序（如 Windows EventLog）在当前环境不可写时不能影响业务。
+    /// </summary>
+    private void TryLogWarning(Exception exception, string message)
+    {
+        try
+        {
+            _logger?.LogWarning(exception, message);
+        }
+        catch
+        {
+            // 日志失败忽略
+        }
+    }
+
+    private void TryLogInformation(string message, params object?[] args)
+    {
+        try
+        {
+            _logger?.LogInformation(message, args);
+        }
+        catch
+        {
+            // 日志失败忽略
+        }
+    }
+
     private void RaiseChanged() => Changed?.Invoke(this, EventArgs.Empty);
 
     private static IReadOnlyList<AiProviderDefinition> BuildDefaultSeeds()
@@ -555,3 +592,5 @@ public sealed class AiProviderManager : IAiProviderManager
         return seeds;
     }
 }
+
+

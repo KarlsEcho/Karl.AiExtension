@@ -55,6 +55,9 @@ public sealed class McpServerBridge : IAsyncDisposable
                 return Tools;
             }
 
+            // 日志提供程序（EventLog 等）在部分环境不可写，不能让它把 MCP 的异常路径带崩
+            loggerFactory = loggerFactory is null ? null : new SafeLoggerFactory(loggerFactory);
+
             var transport = new StreamClientTransport(
                 _clientToServer.Writer.AsStream(),
                 _serverToClient.Reader.AsStream(),
