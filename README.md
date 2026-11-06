@@ -203,4 +203,5 @@ dotnet run --project src/Demo.BlazorHost   # http://localhost:5180
 ## 6. 设计文档
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)：依赖图、调用时序、源生成器规则、DI 生命周期、线程模型、扩展指引
+- [`docs/ADOPTION.md`](docs/ADOPTION.md)：**把框架接入存量 WPF 项目的 6 步迁移指南**（含分阶段推进、常见坑、参考实现）
 - [`docs/BLAZOR.md`](docs/BLAZOR.md)：Blazor 分支如何复用同一套核心
