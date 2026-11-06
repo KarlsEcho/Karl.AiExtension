@@ -1,0 +1,142 @@
+@page "/"
+@rendermode InteractiveServer
+@implements IDisposable
+
+@inject OrdersViewModel Orders
+@inject McpServerBridge Bridge
+
+<PageTitle>订单 · AI 助手（Blazor）</PageTitle>
+
+<header class="page-header">
+    <div class="page-heading">
+        <h1>Karl.AiExtension · Blazor 宿主</h1>
+        <p class="page-subtitle">
+            与 WPF 共用 <code>AI.Extension.Core</code> 的会话核心、<code>Demo.Core</code> 组合根与进程内 MCP 工具；
+            差异只在 UI 渲染层：Blazor 没有 STA UI 线程，工具轨迹通过 <code>ComponentBase.InvokeAsync</code> 回到渲染上下文。
+        </p>
+    </div>
+    <span class="connection-badge"><span class="dot"></span>MCP 已连接 · @Bridge.Tools.Count 个工具</span>
+</header>
+
+<main class="page-grid">
+    <section class="card orders-card">
+        <div class="card-header">
+            <h2>订单列表</h2>
+            <div class="card-actions">
+                <span class="card-caption">@Orders.StatusMessage</span>
+                <button type="button" class="button-secondary" @onclick="RefreshAsync">刷新</button>
+            </div>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="orders-table">
+                <thead>
+                    <tr>
+                        <th>订单号</th>
+                        <th>客户</th>
+                        <th class="numeric">金额</th>
+                        <th>状态</th>
+                        <th>创建时间</th>
+                        <th>备注</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @* 取快照：AI 工具可能在后台线程写回集合，避免遍历时遇到 Collection was modified *@
+                    @foreach (Order order in Orders.Orders.ToArray())
+                    {
+                        <tr class="order-row @(IsSelected(order) ? "is-selected" : string.Empty)" @onclick="() => Select(order)">
+                            <td class="order-id">@order.Id</td>
+                            <td>@order.CustomerName</td>
+                            <td class="numeric">@order.Amount.ToString("C0", CultureInfo.GetCultureInfo("zh-CN"))</td>
+                            <td><span class="status @StatusCss(order.Status)">@StatusText(order.Status)</span></td>
+                            <td class="muted">@order.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                            <td class="muted">@(string.IsNullOrWhiteSpace(order.Remark) ? "—" : order.Remark)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <p class="card-footnote">
+            点选一行会更新 <code>OrdersViewModel.SelectedOrder</code> 并写入 UI 活动日志；
+            AI 通过 MCP 工具检索/取消订单后，表格会随 <code>PropertyChanged</code> 自动刷新。
+        </p>
+    </section>
+
+    <section class="chat-card">
+        <ChatPanel Title="AI 订单助手"
+                   Placeholder="例如：帮我统计一下现在的订单情况 / 看看 SO-1002 / 取消 SO-1001，原因是客户重复下单" />
+    </section>
+</main>
+
+<section class="card tools-card">
+    <div class="card-header">
+        <h2>已连接的 MCP 工具</h2>
+        <span class="card-caption">来自进程内 MCP Server（McpServerBridge.Tools）</span>
+    </div>
+    <div class="tool-chips">
+        @foreach (McpClientTool tool in Bridge.Tools)
+        {
+            <span class="tool-chip" title="@tool.Description">@tool.Name</span>
+        }
+    </div>
+</section>
+
+@code {
+    private bool _disposed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Orders.PropertyChanged += OnOrdersPropertyChanged;
+        await Orders.LoadAsync();
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        Orders.PropertyChanged -= OnOrdersPropertyChanged;
+    }
+
+    private void OnOrdersPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        // AI 工具调用在后台线程把结果写回 ViewModel（默认 IUiDispatcher 是 ImmediateUiDispatcher），
+        // 因此这里必须把「重新渲染」封送回 Blazor 的渲染上下文，不能直接 StateHasChanged。
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private Task RefreshAsync() => Orders.LoadAsync();
+
+    private void Select(Order order) => Orders.SelectedOrder = order;
+
+    private bool IsSelected(Order order) => ReferenceEquals(Orders.SelectedOrder, order);
+
+    private static string StatusText(OrderStatus status) => status switch
+    {
+        OrderStatus.Pending => "待支付",
+        OrderStatus.Paid => "已支付",
+        OrderStatus.Shipped => "已发货",
+        OrderStatus.Completed => "已完成",
+        OrderStatus.Cancelled => "已取消",
+        _ => status.ToString(),
+    };
+
+    private static string StatusCss(OrderStatus status) => status switch
+    {
+        OrderStatus.Pending => "status-pending",
+        OrderStatus.Paid => "status-paid",
+        OrderStatus.Shipped => "status-shipped",
+        OrderStatus.Completed => "status-completed",
+        OrderStatus.Cancelled => "status-cancelled",
+        _ => string.Empty,
+    };
+}

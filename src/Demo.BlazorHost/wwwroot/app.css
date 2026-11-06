@@ -1,0 +1,293 @@
+/* Demo.BlazorHost 页面级样式。聊天面板本身的样式在 AI.Extension.Blazor 类库里。 */
+
+:root {
+    color-scheme: light;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+    background: #f1f5f9;
+    color: #0f172a;
+    line-height: 1.5;
+}
+
+code {
+    font-family: "Cascadia Code", Consolas, monospace;
+    font-size: 0.92em;
+    color: #334155;
+}
+
+.page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 28px 28px 8px;
+}
+
+.page-heading h1 {
+    margin: 0 0 6px;
+    font-size: 1.375rem;
+    font-weight: 700;
+}
+
+.page-subtitle {
+    margin: 0;
+    max-width: 860px;
+    font-size: 0.8125rem;
+    color: #475569;
+}
+
+.connection-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #14532d;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 999px;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+}
+
+.page-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(340px, 1fr);
+    gap: 20px;
+    align-items: start;
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 12px 28px 0;
+}
+
+.card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+}
+
+.card-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 14px 18px;
+    border-bottom: 1px solid #eef2f7;
+}
+
+.card-header h2 {
+    margin: 0;
+    font-size: 0.9375rem;
+    font-weight: 600;
+}
+
+.card-caption {
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.card-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.button-secondary {
+    padding: 5px 12px;
+    font-size: 0.75rem;
+    color: #334155;
+    background: #ffffff;
+    border: 1px solid #d8e0ea;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.button-secondary:hover {
+    background: #f1f5f9;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+}
+
+.orders-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+}
+
+.orders-table th,
+.orders-table td {
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid #f1f5f9;
+    white-space: nowrap;
+}
+
+.orders-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    background: #f8fafc;
+}
+
+.orders-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.order-row {
+    cursor: pointer;
+    transition: background 0.12s ease;
+}
+
+.order-row:hover {
+    background: #f8fafc;
+}
+
+.order-row.is-selected {
+    background: #eff6ff;
+    box-shadow: inset 3px 0 0 #3b82f6;
+}
+
+.order-id {
+    font-family: "Cascadia Code", Consolas, monospace;
+    font-weight: 600;
+    color: #1d4ed8;
+}
+
+.numeric {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.muted {
+    color: #64748b;
+}
+
+.status {
+    display: inline-block;
+    padding: 2px 9px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    border-radius: 999px;
+    border: 1px solid transparent;
+}
+
+.status-pending {
+    color: #92400e;
+    background: #fffbeb;
+    border-color: #fde68a;
+}
+
+.status-paid {
+    color: #1e40af;
+    background: #eff6ff;
+    border-color: #bfdbfe;
+}
+
+.status-shipped {
+    color: #5b21b6;
+    background: #f5f3ff;
+    border-color: #ddd6fe;
+}
+
+.status-completed {
+    color: #14532d;
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+.status-cancelled {
+    color: #7f1d1d;
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+
+.card-footnote {
+    margin: 0;
+    padding: 10px 18px;
+    font-size: 0.75rem;
+    color: #64748b;
+    background: #f8fafc;
+    border-top: 1px solid #eef2f7;
+}
+
+.chat-card {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    overflow: visible;
+    min-height: 520px;
+    display: flex;
+}
+
+.chat-card > * {
+    flex: 1 1 auto;
+}
+
+.tools-card {
+    max-width: 1440px;
+    margin: 20px auto 40px;
+    width: calc(100% - 56px);
+}
+
+.tool-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 16px 18px;
+}
+
+.tool-chip {
+    padding: 5px 11px;
+    font-family: "Cascadia Code", Consolas, monospace;
+    font-size: 0.75rem;
+    color: #1e293b;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+}
+
+.not-found {
+    padding: 40px;
+    text-align: center;
+    color: #64748b;
+}
+
+@media (max-width: 1080px) {
+    .page-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .chat-card {
+        min-height: 560px;
+    }
+}

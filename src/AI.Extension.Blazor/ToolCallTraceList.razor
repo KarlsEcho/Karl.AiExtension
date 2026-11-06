@@ -1,0 +1,28 @@
+@using AI.Extension.Chat
+
+@if (Traces.Count > 0)
+{
+    <div class="ai-chat-traces">
+        <div class="ai-chat-traces-head">工具调用轨迹 · @Traces.Count 次</div>
+        @foreach (AiToolCallTrace trace in Traces)
+        {
+            <div class="ai-chat-trace @(trace.Success ? "ai-chat-trace-success" : "ai-chat-trace-failure")">
+                <div class="ai-chat-trace-head">
+                    <span class="ai-chat-trace-name">@trace.ToolName</span>
+                    <span class="ai-chat-trace-status">@(trace.Success ? "成功" : "失败")</span>
+                    <span class="ai-chat-trace-duration">@trace.Duration.TotalMilliseconds.ToString("F0") ms</span>
+                </div>
+                <div class="ai-chat-trace-detail">
+                    <span class="ai-chat-trace-line">参数：<code>@trace.ArgumentsJson</code></span>
+                    <span class="ai-chat-trace-line">结果：@trace.ResultPreview</span>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    /// <summary>要展示的工具调用轨迹（一轮对话内的全部调用）。</summary>
+    [Parameter]
+    public IReadOnlyList<AiToolCallTrace> Traces { get; set; } = Array.Empty<AiToolCallTrace>();
+}

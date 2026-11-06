@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <RootNamespace>AI.Extension.Blazor</RootNamespace>
+    <Description>AI Extension 的 Blazor 外壳：与 WPF 共享会话核心的聊天组件。</Description>
+    <IsPackable>true</IsPackable>
+    <PackageId>AI.Extension.Blazor</PackageId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AI.Extension.Core\AI.Extension.Core.csproj" />
+  </ItemGroup>
+
+</Project>

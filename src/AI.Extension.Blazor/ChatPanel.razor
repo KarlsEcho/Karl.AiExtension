@@ -1,0 +1,77 @@
+@using AI.Extension.Chat
+@implements IDisposable
+
+<section class="ai-chat-panel">
+    <header class="ai-chat-header">
+        <div class="ai-chat-heading">
+            <h2 class="ai-chat-title">@Title</h2>
+            <p class="ai-chat-subtitle">
+                @if (IsBusy)
+                {
+                    <text>正在处理…</text>
+                }
+                else
+                {
+                    <text>会话历史 @Session.HistoryCount 条 · 工具调用经进程内 MCP 执行</text>
+                }
+            </p>
+        </div>
+        <button type="button" class="ai-chat-clear" @onclick="ClearConversationAsync" disabled="@IsBusy">新对话</button>
+    </header>
+
+    <div class="ai-chat-messages" aria-live="polite">
+        @if (Turns.Count == 0 && !IsBusy)
+        {
+            <p class="ai-chat-empty">@EmptyHint</p>
+        }
+
+        @foreach (ChatTurn turn in Turns)
+        {
+            <article class="ai-chat-message ai-chat-message-user">
+                <span class="ai-chat-role">用户</span>
+                <div class="ai-chat-text">@turn.UserText</div>
+            </article>
+
+            @if (turn.AssistantText is not null)
+            {
+                <article class="ai-chat-message ai-chat-message-assistant">
+                    <span class="ai-chat-role">AI</span>
+                    <div class="ai-chat-text ai-chat-text-pre">@turn.AssistantText</div>
+                </article>
+            }
+
+            @if (turn.Traces.Count > 0)
+            {
+                <ToolCallTraceList Traces="turn.Traces" />
+            }
+        }
+
+        @if (IsBusy)
+        {
+            <div class="ai-chat-busy">
+                <span class="ai-chat-spinner" aria-hidden="true"></span>
+                <span>AI 正在处理：等待模型返回或执行 MCP 工具…</span>
+            </div>
+
+            @if (PendingTraces.Count > 0)
+            {
+                <ToolCallTraceList Traces="PendingTraces" />
+            }
+        }
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <p class="ai-chat-error">@ErrorMessage</p>
+    }
+
+    <form class="ai-chat-form" @onsubmit="SendAsync" @onsubmit:preventDefault>
+        <textarea class="ai-chat-input"
+                  rows="3"
+                  placeholder="@Placeholder"
+                  disabled="@IsBusy"
+                  @bind="Input"
+                  @bind:event="oninput"></textarea>
+        <button type="submit" class="ai-chat-send" disabled="@(!CanSend)">发送</button>
+    </form>
+</section>

@@ -54,6 +54,7 @@ src/
   Demo.View/                            WPF 视图（MainWindow）
   Demo.App/                             WPF 宿主入口（最薄的一层）
   Demo.Host/                            控制台宿主：闭环验证 + `--stdio` 标准 MCP Server
+  Demo.BlazorHost/                      Blazor Server 演示宿主（订单表格 + 聊天面板，端口 5180）
 tests/
   AI.Extension.Abstractions.Generator.Tests/  生成器单测（CSharpGeneratorDriver 驱动）
   Demo.Tests/                                  生成链路、MCP 闭环、ViewModel、UI 日志测试
@@ -121,7 +122,16 @@ dotnet run --project src/Demo.Host -- --stdio
 
 可在 Claude Desktop / VS Code Copilot 的 `mcp.json` 里指到该命令，验证「同一套工具既能被应用内 AI 用，也能被任意 MCP 宿主用」。
 
-### 3.4 接真实大模型
+### 3.4 Blazor 宿主
+
+```powershell
+dotnet run --project src/Demo.BlazorHost   # http://localhost:5180
+```
+
+订单表格 + AI 聊天面板 + 工具清单，复用同一套 `ChatSession` / `Demo.Core` / 进程内 MCP。
+与 WPF 的差异（线程调度、`SynchronizationContext`、数据绑定、预渲染）与已知限制见 [`docs/BLAZOR.md`](docs/BLAZOR.md)。
+
+### 3.5 接真实大模型
 
 离线模式只是为了开箱即跑；配置以下环境变量后重启应用即切换为真实模型（任意 OpenAI 兼容端点）：
 
@@ -155,7 +165,7 @@ $env:KARL_AI_MODEL    = "deepseek-chat"
 - **人工确认（Human-in-the-loop）**：敏感工具目前只做参数校验与日志，未做「AI 请求 → 原生弹窗确认」的拦截；`ChatSession` 的工具循环是显式写的，加这一步只需在调用前插入一次用户确认。
 - **权限模型**：没有 RBAC，只有工具级校验。
 - **生成器增量性能**：当前用 `CompilationProvider` 全量扫描（为了能看到其他程序集里的契约），对契约规模大的仓库可优化为「按程序集分组 + 缓存」。
-- **Blazor**：独立分支，见 `docs/BLAZOR.md`。
+- **Blazor**：已完成 Interactive Server 宿主（`Demo.BlazorHost`）；WASM / 多 circuit 多会话隔离等限制见 `docs/BLAZOR.md`。
 - **`Demo.MCP` 对 `Demo.Contract` 的引用是编译期引用**：强类型桥接必须能看见契约类型。若要求 `Demo.MCP` 完全不引用契约程序集，可把桥接生成到独立的 `Demo.Contract.Generated` 程序集，MCP 只依赖该程序集 + Abstractions。
 
 ---

@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <!-- 必须跟 Demo.Core 一致：Demo.Core 是 net10.0-windows 且 UseWPF，走 WindowsDesktop 共享框架 -->
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Demo.BlazorHost</RootNamespace>
+    <Description>Blazor Server 宿主：订单表格 + 复用 AI.Extension.Core 的聊天面板，与 WPF 共用同一套进程内 MCP 闭环。</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Demo.Core\Demo.Core.csproj" />
+    <ProjectReference Include="..\AI.Extension.Blazor\AI.Extension.Blazor.csproj" />
+    <ProjectReference Include="..\AI.Extension.Core\AI.Extension.Core.csproj" />
+    <ProjectReference Include="..\Demo.ViewModel\Demo.ViewModel.csproj" />
+    <ProjectReference Include="..\Demo.Model\Demo.Model.csproj" />
+  </ItemGroup>
+
+</Project>
