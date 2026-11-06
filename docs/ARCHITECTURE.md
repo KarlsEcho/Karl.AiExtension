@@ -98,6 +98,11 @@ WPF 表格下方的「新增 / 编辑订单」表单直接调用同一批 ViewMo
 5. `ChatSession` 从这里取得 `McpClientTool`（继承自 `AIFunction`）交给 `IChatClient`。
 
 > 顺序不能反：先启动 Server 再建 Client，否则 initialize 握手会一直等待。
+>
+> **一键门面**：`AddAiExtension(options => options.UseMcpToolsFrom(typeof(OrderTools).Assembly))`
+> 把上面 1~4 步封装进一个 `IHostedService`（注册在 MCP Server 的 HostedService 之后），
+> 宿主只需 `await host.StartAsync()`；框架顺便自动调用生成的 `AddAiContractBridges()`。
+> 手动细粒度 API 仍保留（见 `docs/ADOPTION.md` 5.4）。
 
 ---
 
@@ -160,8 +165,13 @@ WPF 表格下方的「新增 / 编辑订单」表单直接调用同一批 ViewMo
 | `ChatSession` | Singleton | 串行化对话（内部 `SemaphoreSlim`），每轮通过 accessor 取当前客户端 |
 | `IUiDispatcher` | Singleton | WPF：`WpfUiDispatcher`；无界面：`ImmediateUiDispatcher` |
 | `IUiActivityTracker` | Singleton | 环形缓冲，容量 200 |
+| `AiExtensionIntegrationHostedService` | IHostedService | 一键门面注册：`StartAsync` 时初始化供应商配置并连接进程内 MCP Client |
 
-> 注册顺序注意：`IUiDispatcher` 是 `TryAdd` 的「默认实现」，WPF 侧必须**先注册** `WpfUiDispatcher`（`AddDemoCoreForWpf()` 已封装这一点），否则会被 `ImmediateUiDispatcher` 抢占。
+> 注册顺序注意：`IUiDispatcher` 是 `TryAdd` 的「默认实现」，WPF 侧必须**先注册** `WpfUiDispatcher`（`AddDemoCoreForWpf()` / `AddAiExtensionWpf(options)` 已封装这一点），否则会被 `ImmediateUiDispatcher` 抢占。
+>
+> 一键门面 `AddAiExtension(configure)` / `AddAiExtensionWpf(configure)` 会一次性注册上表绝大部分服务，
+> 并根据 `options.UseMcpToolsFrom(assembly)` 自动登记生成的契约桥接与 MCP 工具，
+> 宿主几乎只需要 `host.StartAsync()`（详见 `docs/ADOPTION.md`）。
 
 ---
 

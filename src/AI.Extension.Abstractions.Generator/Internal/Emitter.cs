@@ -217,6 +217,8 @@ internal static class Emitter
         builder.AppendLine("#nullable enable");
         builder.AppendLine("#pragma warning disable CS1591");
         builder.AppendLine();
+        builder.AppendLine("[assembly: global::AI.Extension.AiExtensionContractAssembly(typeof(global::AI.Extension.Generated.AiContractBridgeRegistration))]");
+        builder.AppendLine();
         builder.Append("namespace ").Append(GeneratedRootNamespace).AppendLine(";");
         builder.AppendLine();
         builder.AppendLine("/// <summary>");

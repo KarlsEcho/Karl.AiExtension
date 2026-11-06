@@ -43,18 +43,17 @@ public static class DemoBootstrap
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddDemoDomain();
-        services.AddAiProviderManagement(providerStore);
 
-        // 未配置任何供应商时使用离线规则客户端；配置后在「模型与供应商」页切换即可自动生效
-        services.AddAiChatSession(chatOptions ?? new AiChatOptions(), new DemoOfflineChatClient());
-
-        // 进程内 MCP：同一对内存管道把 Server 与 Client 连起来，工具可直接用容器里的单例
-        var bridge = new McpServerBridge();
-        services.AddSingleton(bridge);
-
-        IMcpServerBuilder mcp = services.AddMcpServer();
-        mcp.WithInProcessStreamTransport(bridge);
-        mcp.AddDemoMcpTools();
+        // 一键接入：供应商管理 + 会话 + 自动登记契约桥接 + 进程内 MCP Server + 自动启动
+        // （等价于手写 AddAiProviderManagement / AddAiChatSession / AddAiContractBridges / AddMcpServer 四步）
+        services.AddAiExtension(options =>
+        {
+            options.UseMcpToolsFrom(DemoMcpExtensions.Assembly);
+            options.ChatOptions = chatOptions ?? new AiChatOptions();
+            // 未配置任何供应商时使用离线规则客户端；配置后在「模型与供应商」页切换即可自动生效
+            options.FallbackChatClient = new DemoOfflineChatClient();
+            options.ProviderStore = providerStore;
+        });
 
         return services;
     }
@@ -73,8 +72,18 @@ public static class DemoBootstrap
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.AddAiExtensionWpf();
-        return services.AddDemoCore(chatOptions, providerStore);
+        services.AddDemoDomain();
+
+        // 一行接入：WPF 外壳 + 供应商/会话/桥接/进程内 MCP 全部自动装配
+        services.AddAiExtensionWpf(options =>
+        {
+            options.UseMcpToolsFrom(DemoMcpExtensions.Assembly);
+            options.ChatOptions = chatOptions ?? new AiChatOptions();
+            options.FallbackChatClient = new DemoOfflineChatClient();
+            options.ProviderStore = providerStore;
+        });
+
+        return services;
     }
 
     /// <summary>
@@ -96,7 +105,7 @@ public static class DemoBootstrap
     }
 
     /// <summary>
-    /// 快速启动一个进程内 Demo 宿主：建容器 → 初始化供应商配置 → 启动 MCP Server → 连接进程内 MCP Client。
+    /// 快速启动一个进程内 Demo 宿主：建容器 → 启动宿主（框架自动初始化供应商配置并连接 MCP Client）。
     /// </summary>
     public static async Task<IHost> StartDemoHostAsync(
         Action<HostApplicationBuilder>? configureBuilder = null,
@@ -112,17 +121,8 @@ public static class DemoBootstrap
 
         IHost host = builder.Build();
 
-        // 供应商配置先于宿主启动加载：首次运行会写入内置预设（不依赖 MCP Server）
-        await host.Services
-            .GetRequiredService<IAiProviderManager>()
-            .InitializeAsync(cancellationToken)
-            .ConfigureAwait(false);
-
+        // 供应商初始化 + 进程内 MCP Client 连接由框架注册的 HostedService 在 StartAsync 内完成
         await host.StartAsync(cancellationToken).ConfigureAwait(false);
-
-        var bridge = host.Services.GetRequiredService<McpServerBridge>();
-        await bridge.ConnectAsync(host.Services.GetService<ILoggerFactory>(), cancellationToken).ConfigureAwait(false);
-
         return host;
     }
 
@@ -131,8 +131,5 @@ public static class DemoBootstrap
         services.TryAddSingleton<IOrderRepository, InMemoryOrderRepository>();
         services.TryAddSingleton<OrdersViewModel>();
         services.TryAddSingleton<IOrderService>(provider => provider.GetRequiredService<OrdersViewModel>());
-
-        // 源生成器产出的注册入口：AddAiContractBridges()
-        services.AddAiContractBridges();
     }
 }

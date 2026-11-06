@@ -73,25 +73,22 @@ builder.Services.AddAiExtensionBlazor(); // Blazor 外壳的 UI 服务（幂等 
 ## 三、宿主启动流程（`src/Demo.BlazorHost/Program.cs`）
 
 ```text
-builder.Services.AddDemoCore()                 // 业务 + ChatSession + 进程内 MCP Server
+builder.Services.AddDemoCore()                 // 一键门面：业务 + 会话 + 桥接 + 进程内 MCP + 自动启动
 builder.Services.AddAiExtensionBlazor()        // Blazor 外壳 UI 服务
 builder.Services.AddRazorComponents().AddInteractiveServerComponents()
 builder.Build()
 app.UseStaticFiles() / UseAntiforgery() / MapRazorComponents<App>()...
-await app.StartAsync()                         // MCP Server 作为 IHostedService 随宿主启动
-await app.Services.GetRequiredService<IAiProviderManager>().InitializeAsync()  // 页面渲染前加载供应商配置
-await app.Services.GetRequiredService<McpServerBridge>().ConnectAsync()   // 拉取工具清单
+await app.StartAsync()                         // 框架自动：加载供应商配置 -> 启动 MCP Server -> 连接 MCP Client
 await app.WaitForShutdownAsync()               // 等价于 Run() 的「保持进程存活」
 ```
 
-### 供应商初始化必须在页面首次渲染前完成
+### 启动顺序由框架保证，宿主不再手写
 
-`AiModelSelector` 直接读 `IAiProviderManager.Providers`，而未初始化的管理器会拒绝
-`SetActiveAsync` / `SaveAsync` / `RemoveAsync`（抛「供应商管理器尚未初始化」）。
-所以 `Program.cs` 在 `StartAsync()` 之后、`ConnectAsync()` 之前补了一次
-`InitializeAsync()`（幂等，与 `Demo.Core.StartDemoHostAsync` 的顺序一致）。
+`AddDemoCore()` 内部调用一键门面 `AddAiExtension(...)`，它会注册一个 HostedService：
+在 `StartAsync` 时**先**加载供应商配置（`IAiProviderManager.InitializeAsync`），**再**连接进程内 MCP Client。
+因此 `AiModelSelector` 在页面渲染前就能读到 `Providers`，`ChatSession` 也已经拿到 `bridge.Tools`。
 
-首次运行时它会写入 4 个内置供应商预设（全部 `Enabled = false`、无 API Key），
+首次运行会写入 4 个内置供应商预设（全部 `Enabled = false`、无 API Key），
 因此新装环境下 Blazor 页面会显示「暂无可用供应商」的空状态——这是**预期行为**，
 不是组件故障；到 WPF 的「模型与供应商」页启用并填好 Key 后，Blazor 页面刷新即可看到候选。
 
@@ -117,7 +114,7 @@ MCP 连接仍然严格发生在 `StartAsync` 之后、`Run` 之前，`ChatSessio
 | 数据绑定 | `ObservableCollection` + `INotifyPropertyChanged` 由 WPF 绑定引擎自动刷新 | 绑定引擎不存在：页面订阅 `OrdersViewModel.PropertyChanged`，回调里 `InvokeAsync(StateHasChanged)` 手动重渲染（`ObservableCollection` 自身的变化不会自动通知 Blazor） |
 | 生命周期 | 应用级单例 + 窗口/视图模型 | Blazor Server 每个浏览器 circuit 一个作用域；`ChatSession`/`OrdersViewModel` 是单例（见「已知限制」） |
 | 渲染 | 立即渲染 | 默认预渲染（prerender）：页面先以静态 HTML 返回，再建立 circuit 重渲染；`ChatPanel` 在预渲染实例与交互实例中各 `OnInitialized` 一次，靠 `Dispose` 成对取消事件订阅 |
-| 启动 | `App.xaml` 启动 → 建容器 → 启动 MCP | `Program.cs` 显式 `StartAsync` → `ConnectAsync` → `WaitForShutdownAsync` |
+| 启动 | `App.xaml` 启动 → 建容器 → `AddDemoCoreForWpf`（一键门面）→ `StartAsync`（框架自动完成供应商初始化与 MCP 连接） | `Program.cs`：`AddDemoCore`（一键门面）→ `StartAsync` → `WaitForShutdownAsync` |
 
 ## 五、已知限制
 
@@ -217,4 +214,5 @@ $r.Content.Contains('暂无可用供应商')       # 未启用任何供应商时
   清除 `src/Demo.MCP/bin`、`src/Demo.BlazorHost/bin|obj` 后重新构建即可。
 - **`app.Run()` 在 `StartAsync` 之后不可用**：见上文「为什么最后不是字面上的 app.Run()」。
 - **端口被占用**：先 `Get-NetTCPConnection -LocalPort 5180 -State Listen` 确认，再结束残留进程。
+
 

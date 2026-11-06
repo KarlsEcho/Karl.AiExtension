@@ -11,11 +11,10 @@ namespace AI.Extension;
 public static class WpfServiceCollectionExtensions
 {
     /// <summary>
-    /// 注册 WPF 外壳：UI 线程调度实现、聊天面板与诊断面板的视图模型。
+    /// 只注册 WPF 外壳：UI 线程调度实现、聊天/供应商/诊断面板的视图模型。
     /// <para>
-    /// 必须在 <c>AddDemoCore()</c> 之前调用（或使用 <c>AddDemoCoreForWpf()</c>）：
-    /// 核心层用 TryAdd 注册 ImmediateUiDispatcher，先注册 WPF 实现即可生效。
-    /// 这里额外做一次 RemoveAll + Add，保证无论注册顺序如何都以 WPF 调度器为准。
+    /// 适合需要自己控制供应商/会话/MCP 装配的高级场景；一般直接用
+    /// <see cref="AddAiExtensionWpf(IServiceCollection, Action{AiExtensionOptions})"/> 一行接入即可。
     /// </para>
     /// </summary>
     public static IServiceCollection AddAiExtensionWpf(this IServiceCollection services)
@@ -31,5 +30,35 @@ public static class WpfServiceCollectionExtensions
         services.TryAddSingleton<AiDiagnosticsViewModel>();
         return services;
     }
-}
 
+    /// <summary>
+    /// **一键接入 WPF 宿主**：WPF 外壳 + 供应商管理 + 对话会话 + 契约桥接 + 进程内 MCP，
+    /// 并在 <c>host.StartAsync()</c> 时自动完成「加载供应商配置 → 连接进程内 MCP Client」。
+    /// <para>典型用法：</para>
+    /// <code>
+    /// builder.Services.AddAiExtensionWpf(options =>
+    /// {
+    ///     options.UseMcpToolsFrom(typeof(OrderTools).Assembly);
+    ///     options.ChatOptions.SystemPrompt = "你是订单助手……";
+    ///     options.FallbackChatClient = new OfflineDemoChatClient();
+    /// });
+    /// var host = builder.Build();
+    /// await host.StartAsync();   // 其余交给框架
+    /// </code>
+    /// </summary>
+    /// <param name="services">服务集合。</param>
+    /// <param name="configure">配置回调。</param>
+    public static IServiceCollection AddAiExtensionWpf(
+        this IServiceCollection services,
+        Action<AiExtensionOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        // 先注册 WPF 外壳（UI 调度器必须在核心层 TryAdd 之前就位）
+        services.AddAiExtensionWpf();
+
+        // 再注册供应商/会话/桥接/进程内 MCP 与自动启动服务
+        return services.AddAiExtension(configure);
+    }
+}

@@ -48,7 +48,7 @@ AI 操作：    自然语言 ──► 大模型 ──► MCP 工具 ──┘
 src/
   AI.Extension.Abstractions/            绑定声明特性（[AiContractBinding] / [AiMethod]）、桥接接口、UI 抽象
   AI.Extension.Abstractions.Generator/  Roslyn 增量源生成器（按 MCP 层的绑定声明产出桥接）
-  AI.Extension.Core/                    会话核心：工具循环、进程内 MCP 宿主、UI 日志、供应商/模型管理、MVVM 基类
+  AI.Extension.Core/                    会话核心：工具循环、进程内 MCP 宿主、UI 日志、供应商/模型管理、MVVM 基类；<br>一键接入门面 `AddAiExtension(options => ...)`
   AI.Extension.WPF/                     WPF 外壳：聊天面板、模型与供应商面板、工具/契约诊断面板、WpfUiDispatcher
   AI.Extension.Blazor/                  Blazor 外壳（Razor 组件，与 WPF 共享 ChatSession）
   Demo.Contract/                        纯业务契约（IOrderService），零实现、零 AI 依赖

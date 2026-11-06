@@ -34,27 +34,22 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 // ---------------------------------------------------------------------------
-// 关键启动顺序（与 Demo.Host 的 StartDemoHostAsync 同构）：
-// 0) 先加载供应商配置：页面渲染/AiModelSelector 读取 Providers 都依赖它（首次运行会写内置预设）；
-// 1) 启动宿主：进程内 MCP Server 作为 IHostedService 随宿主一起启动；
-// 2) 再连接进程内 MCP Client 并拉取工具清单（ChatSession 依赖 bridge.Tools）；
-// 3) 最后进入运行循环，开始接受 HTTP 请求。
+// 启动顺序说明：供应商配置加载、进程内 MCP Server 启动、MCP Client 连接，
+// 全部由框架注册的 HostedService 在 StartAsync 内自动完成（见 AddAiExtension 门面）。
+// 这里只需要 StartAsync + 保持运行。
 //
 // 注意：StartAsync 之后不能再调用 app.Run()，因为 Run() 内部会再次调用 StartAsync，
 // 而 Kestrel 会抛 InvalidOperationException「Server has already started.」。
 // 所以这里用 WaitForShutdownAsync 阻塞到进程退出，语义等价于「StartAsync 之后的 Run」。
 // ---------------------------------------------------------------------------
-await app.Services.GetRequiredService<IAiProviderManager>().InitializeAsync();
-
 await app.StartAsync();
 
 McpServerBridge bridge = app.Services.GetRequiredService<McpServerBridge>();
-IReadOnlyList<McpClientTool> tools = await bridge.ConnectAsync(app.Services.GetService<ILoggerFactory>());
 app.Logger.LogInformation(
     "进程内 MCP 已连接（会话 {SessionId}），发现 {Count} 个工具：{ToolNames}",
     bridge.Client.SessionId,
-    tools.Count,
-    string.Join(", ", tools.Select(static tool => tool.Name)));
+    bridge.Tools.Count,
+    string.Join(", ", bridge.Tools.Select(static tool => tool.Name)));
 
 // 宿主已经在监听，这里只需等待 Ctrl+C / SIGTERM。
 await app.WaitForShutdownAsync();

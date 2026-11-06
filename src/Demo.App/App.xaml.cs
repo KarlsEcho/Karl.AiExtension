@@ -27,20 +27,14 @@ public partial class App : Application
             var builder = Host.CreateApplicationBuilder(e.Args);
             builder.Logging.ClearProviders();
 
-            // 组合根：WPF 外壳 + 业务 + 生成器桥接 + 进程内 MCP Server + 工具
+            // 组合根：一行接入 WPF 外壳 + 业务 + 契约桥接 + 进程内 MCP（供应商初始化与连接由框架自动完成）
             builder.Services.AddDemoCoreForWpf();
             builder.Services.AddSingleton<MainWindow>();
 
             _host = builder.Build();
 
-            // 供应商配置必须先于窗口/对话加载：首次运行会写入内置预设，之后所有修改即时生效
-            await _host.Services.GetRequiredService<AI.Extension.Providers.IAiProviderManager>().InitializeAsync();
-
+            // StartAsync 内部由框架 HostedService 完成：加载供应商配置 -> 启动 MCP Server -> 连接 MCP Client
             await _host.StartAsync();
-
-            // 启动进程内 MCP 会话：MCP Server 与 Client 通过内存管道直连
-            McpServerBridge bridge = _host.Services.GetRequiredService<McpServerBridge>();
-            await bridge.ConnectAsync(_host.Services.GetService<ILoggerFactory>());
 
             if (e.Args.Contains("--smoke", StringComparer.OrdinalIgnoreCase))
             {

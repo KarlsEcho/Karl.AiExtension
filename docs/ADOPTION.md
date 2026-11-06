@@ -158,42 +158,45 @@ public sealed class CustomerTools(CustomerServiceBridge bridge, IUiActivityTrack
 
 ---
 
-## 第 5 步：宿主接线（1~2 小时）
+## 第 5 步：宿主接线（10 分钟，一行配置）
 
-### 5.1 组合根
+### 5.1 一行接入
 
 ```csharp
 // 现有业务注册保持不动
 services.AddSingleton<CustomerViewModel>();
 services.AddSingleton<ICustomerService>(sp => sp.GetRequiredService<CustomerViewModel>());
 
-// 框架注册（顺序注意：WPF 外壳必须在 AddDemoCore 等价物之前）
-services.AddAiExtensionWpf();            // 注册 WpfUiDispatcher + 聊天/供应商/诊断面板 VM
-services.AddAiProviderManagement();      // 供应商持久化 + 密钥保护
-services.AddAiChatSession(               // 会话 + 聊天客户端访问器
-    chatOptions: new AiChatOptions(),
-    fallbackChatClient: new OfflineDemoChatClient()); // 无 Key 时的兜底，可不要
-services.AddAiContractBridges();         // ← 生成器产出
-
-// 进程内 MCP Server
-var bridge = new McpServerBridge();
-services.AddSingleton(bridge);
-services.AddMcpServer()
-    .WithInProcessStreamTransport(bridge)
-    .WithToolsFromAssembly(typeof(CustomerTools).Assembly);
+// 框架：一行接入（WPF 外壳 + 供应商 + 会话 + 契约桥接 + 进程内 MCP + 自动启动）
+services.AddAiExtensionWpf(options =>
+{
+    options.UseMcpToolsFrom(typeof(CustomerTools).Assembly);   // ← 只需要告诉它工具在哪个程序集
+    options.ChatOptions.SystemPrompt = "你是客户管理助手……";      // 可选
+    options.FallbackChatClient = new OfflineDemoChatClient();   // 可选：无 Key 时的兜底
+});
 ```
 
-### 5.2 启动顺序（不能反过来）
+这一行内部自动完成：
+
+| 原本要手写的 | 门面自动处理 |
+| --- | --- |
+| `AddAiProviderManagement()` | ✅ 供应商持久化 + 密钥保护 |
+| `AddAiChatSession()` | ✅ 会话 + 当前客户端访问器 |
+| `AddAiContractBridges()` | ✅ 通过工具程序集上的生成器标记自动登记 |
+| 创建 `McpServerBridge` + `AddMcpServer().WithInProcessStreamTransport()` | ✅ 自动完成 |
+| `WithToolsFromAssembly(...)` | ✅ 用 `UseMcpToolsFrom` 的程序集 |
+| `InitializeAsync` / `ConnectAsync` 的调用时序 | ✅ 由框架 HostedService 在 `StartAsync` 内完成 |
+
+### 5.2 启动
 
 ```csharp
 var host = builder.Build();
-
-await host.Services.GetRequiredService<IAiProviderManager>().InitializeAsync(); // 先加载供应商配置
-await host.StartAsync();                                                       // 再启动 MCP Server
-await host.Services.GetRequiredService<McpServerBridge>().ConnectAsync();      // 最后连 Client 并拉工具
-
+await host.StartAsync();          // 框架自动：加载供应商配置 → 启动 MCP Server → 连接 MCP Client
 new MainWindow(...).Show();
 ```
+
+**不需要**再手写 `InitializeAsync()` / `ConnectAsync()`。⚠️ 前提是使用 Generic Host（`Host.CreateApplicationBuilder`）；
+纯 `Application` 启动、不建 Host 的存量项目，需先引入 Host 作为组合根（见第 0 步判断表）。
 
 ### 5.3 把面板塞进现有窗口
 
@@ -209,6 +212,22 @@ new MainWindow(...).Show();
 ChatSurface.DataContext = host.Services.GetRequiredService<ChatPanelViewModel>();
 ProvidersSurface.DataContext = host.Services.GetRequiredService<ProviderManagerViewModel>();
 DiagnosticsSurface.DataContext = host.Services.GetRequiredService<AiDiagnosticsViewModel>();
+```
+
+### 5.4 需要自己控制装配？细粒度 API 仍然可用
+
+门面只是把下面这组调用打包了，高级场景（不用 Generic Host、多个 MCP Server、自定义启动顺序）可以手动拼装：
+
+```csharp
+services.AddAiExtensionWpf();                    // 只装外壳
+services.AddAiProviderManagement(store);         // 供应商
+services.AddAiChatSession(chatOptions, fallback); // 会话
+services.AddAiContractBridges();                 // 生成的桥接（手动调用）
+services.AddMcpServer().WithInProcessStreamTransport(bridge).WithToolsFromAssembly(asm);
+
+await providerManager.InitializeAsync();
+await host.StartAsync();
+await bridge.ConnectAsync();
 ```
 
 ---
