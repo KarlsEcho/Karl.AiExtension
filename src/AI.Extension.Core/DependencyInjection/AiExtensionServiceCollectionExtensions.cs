@@ -106,6 +106,21 @@ public static class AiExtensionServiceCollectionExtensions
     }
 
     /// <summary>
+    /// 按工具程序集上生成的 <see cref="AiExtensionContractAssemblyAttribute"/> 注册契约桥接。
+    /// 适用于「只做 MCP Server、不走 <see cref="AddAiExtension"/> 门面」的场景（stdio / HTTP 宿主）。
+    /// </summary>
+    public static IServiceCollection AddAiExtensionContracts(
+        this IServiceCollection services,
+        Assembly toolsAssembly)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(toolsAssembly);
+
+        RegisterGeneratedBridges(services, toolsAssembly);
+        return services;
+    }
+
+    /// <summary>
     /// 从工具程序集上生成的 <see cref="AiExtensionContractAssemblyAttribute"/> 找到桥接注册入口并调用，
     /// 省去宿主手写 <c>services.AddAiContractBridges()</c>。
     /// </summary>

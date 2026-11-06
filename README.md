@@ -127,13 +127,21 @@ src\Demo.App\bin\Debug\net10.0-windows\Demo.App.exe --smoke
 # 结果写入同目录 smoke.log
 ```
 
-### 3.3 把工具暴露给外部 MCP 宿主（stdio）
+### 3.3 把工具暴露给外部 MCP 宿主（stdio / HTTP）
 
 ```powershell
-dotnet run --project src/Demo.Host -- --stdio
+# 本地 harness：Claude Desktop / Claude Code / CodeBuddy / WorkBuddy / Cursor / VS Code Copilot…
+dotnet publish src/Demo.Host -c Release -o publish
+publish\Demo.Host.exe --stdio          # stdout 是协议通道，别用 dotnet run 直接接
+
+# 只支持 URL 的 harness
+dotnet run --project src/Demo.Host -- --http   # http://127.0.0.1:5199
 ```
 
-可在 Claude Desktop / VS Code Copilot 的 `mcp.json` 里指到该命令，验证「同一套工具既能被应用内 AI 用，也能被任意 MCP 宿主用」。
+配置模板、各 harness 的配置位置、WorkBuddy/CodeBuddy 的接入方式与验证步骤见
+[`docs/MCP-HOSTS.md`](docs/MCP-HOSTS.md)。
+
+> 同一套 `[McpServerTool]` 工具既能被应用内 AI 调用，也能被任意 MCP harness 调用，不需要改 MCP 层代码。
 
 ### 3.4 接入真实大模型（供应商 / 模型管理）
 
@@ -204,4 +212,5 @@ dotnet run --project src/Demo.BlazorHost   # http://localhost:5180
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)：依赖图、调用时序、源生成器规则、DI 生命周期、线程模型、扩展指引
 - [`docs/ADOPTION.md`](docs/ADOPTION.md)：**把框架接入存量 WPF 项目的 6 步迁移指南**（含分阶段推进、常见坑、参考实现）
+- [`docs/MCP-HOSTS.md`](docs/MCP-HOSTS.md)：**把 MCP 层交给 Claude Code / CodeBuddy / WorkBuddy / Cursor 等 harness 使用**（stdio / HTTP 两种传输的配置与边界）
 - [`docs/BLAZOR.md`](docs/BLAZOR.md)：Blazor 分支如何复用同一套核心

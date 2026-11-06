@@ -87,20 +87,32 @@ public static class DemoBootstrap
     }
 
     /// <summary>
-    /// 注册「标准 MCP Server（stdio）」形态：不启动 AI 会话，只把工具按 MCP 协议暴露给外部宿主
-    /// （Claude Desktop / VS Code Copilot / 任意 MCP 客户端）。
+    /// 只注册「MCP Server 工具侧」（业务 + AI 扩展核心 + 全部工具），由宿主决定传输层。
+    /// 适合 stdio / HTTP / 自定义传输；进程内宿主的完整装配请用 <see cref="AddDemoCore"/>。
     /// </summary>
-    public static IServiceCollection AddDemoStdioServer(this IServiceCollection services)
+    public static IMcpServerBuilder AddDemoMcpServer(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddDemoDomain();
         services.AddAiExtensionCore();
+        // 只做 MCP Server 的宿主（stdio / HTTP）不经过一键门面，这里显式登记生成的契约桥接
+        services.AddAiExtensionContracts(DemoMcpExtensions.Assembly);
 
         IMcpServerBuilder mcp = services.AddMcpServer();
-        mcp.WithStdioServerTransport();
         mcp.AddDemoMcpTools();
+        return mcp;
+    }
 
+    /// <summary>
+    /// 注册「标准 MCP Server（stdio）」形态：不启动 AI 会话，只把工具按 MCP 协议暴露给外部宿主
+    /// （Claude Desktop / Claude Code / VS Code Copilot / CodeBuddy / WorkBuddy 等本地 harness）。
+    /// </summary>
+    public static IServiceCollection AddDemoStdioServer(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddDemoMcpServer().WithStdioServerTransport();
         return services;
     }
 

@@ -4,6 +4,8 @@ using AI.Extension.Chat;
 using AI.Extension.Mcp;
 using AI.Extension.Providers;
 using Demo.Core;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -58,7 +60,8 @@ if (args.Contains("--check-providers", StringComparer.OrdinalIgnoreCase))
 // ---------------------------------------------------------------------------
 // 模式 1：标准 MCP Server（stdio）
 //   dotnet run --project src/Demo.Host -- --stdio
-//   可被 Claude Desktop / VS Code Copilot 等任意 MCP 宿主接入。
+//   可被 Claude Desktop / Claude Code / VS Code Copilot / CodeBuddy / WorkBuddy 等
+//   支持 stdio 的 MCP 宿主接入。
 // ---------------------------------------------------------------------------
 if (args.Contains("--stdio", StringComparer.OrdinalIgnoreCase))
 {
@@ -68,6 +71,32 @@ if (args.Contains("--stdio", StringComparer.OrdinalIgnoreCase))
     mcpBuilder.Services.AddDemoStdioServer();
 
     await mcpBuilder.Build().RunAsync();
+    return;
+}
+
+// ---------------------------------------------------------------------------
+// 模式 1.2：Streamable HTTP MCP Server
+//   dotnet run --project src/Demo.Host -- --http
+//   端点：http://127.0.0.1:5199  （供只支持 URL/HTTP 的 harness 或远端客户端使用）
+// ---------------------------------------------------------------------------
+if (args.Contains("--http", StringComparer.OrdinalIgnoreCase))
+{
+    var httpBuilder = Microsoft.AspNetCore.Builder.WebApplication.CreateBuilder(args);
+    httpBuilder.WebHost.UseUrls("http://127.0.0.1:5199");
+    httpBuilder.Logging.ClearProviders();
+    httpBuilder.Logging.AddConsole(options => options.LogToStandardErrorThreshold = LogLevel.Warning);
+
+    httpBuilder.Services.AddDemoMcpServer().WithHttpTransport(options =>
+    {
+        // 无状态模式：不需要服务端主动 sampling/elicitation，部署最简
+        options.Stateless = true;
+    });
+
+    var app = httpBuilder.Build();
+    app.MapMcp();
+
+    Console.WriteLine("MCP Streamable HTTP Server: http://127.0.0.1:5199");
+    await app.RunAsync();
     return;
 }
 
@@ -181,4 +210,5 @@ static string FormatToolResult(CallToolResult result)
 
     return result.IsError is true ? $"[工具返回错误]\n{text}" : text;
 }
+
 
