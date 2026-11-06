@@ -143,6 +143,11 @@ public sealed class AiProviderManager : IAiProviderManager
                     _activeProviderId = null;
                     _activeModelId = null;
                 }
+                else if (state.Version < AiProviderPresets.SchemaVersion)
+                {
+                    // 旧版本配置：把仍是内置预设的供应商升级到最新端点/模型（保留 Key 与启用状态）
+                    UpgradePresetProvidersLocked();
+                }
 
                 EnsureActiveConsistentLocked();
                 _initialized = true;
@@ -500,10 +505,39 @@ public sealed class AiProviderManager : IAiProviderManager
         AiProviderState state;
         lock (_sync)
         {
-            state = new AiProviderState(_providers.ToArray(), _activeProviderId, _activeModelId);
+            state = new AiProviderState(
+                _providers.ToArray(),
+                _activeProviderId,
+                _activeModelId,
+                AiProviderPresets.SchemaVersion);
         }
 
         await _store.SaveAsync(state, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 把「Id 仍是内置预设」的供应商升级到当前预设参数，但保留用户填写的 API Key 与启用状态。
+    /// 自定义供应商（Id 不在预设里）不受影响。仅在配置版本号低于当前预设版本时执行一次。
+    /// </summary>
+    private void UpgradePresetProvidersLocked()
+    {
+        Dictionary<string, AiProviderDefinition> presets = AiProviderPresets.CreateDefaults()
+            .ToDictionary(static preset => preset.Id, StringComparer.Ordinal);
+
+        for (int index = 0; index < _providers.Count; index++)
+        {
+            AiProviderDefinition existing = _providers[index];
+            if (!presets.TryGetValue(existing.Id, out AiProviderDefinition? preset))
+            {
+                continue;
+            }
+
+            _providers[index] = preset with
+            {
+                ApiKey = existing.ApiKey,
+                Enabled = existing.Enabled,
+            };
+        }
     }
 
     private void RaiseChanged() => Changed?.Invoke(this, EventArgs.Empty);

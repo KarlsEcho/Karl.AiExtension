@@ -28,4 +28,28 @@ public interface IOrderService
 
     /// <summary>返回订单统计摘要。</summary>
     Task<OrderSummary> GetSummaryAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>新增订单（默认状态为待支付）。</summary>
+    Task<OrderOperationResult> CreateAsync(
+        string customerName,
+        decimal amount,
+        string? remark,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>修改订单信息；参数为空表示不修改该字段。</summary>
+    Task<OrderOperationResult> UpdateAsync(
+        string orderId,
+        string? customerName,
+        decimal? amount,
+        string? remark,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>变更订单状态（支付 / 发货 / 完成等）。</summary>
+    Task<OrderOperationResult> ChangeStatusAsync(
+        string orderId,
+        OrderStatus status,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>删除订单（物理删除，谨慎使用）。</summary>
+    Task<OrderOperationResult> DeleteAsync(string orderId, CancellationToken cancellationToken = default);
 }

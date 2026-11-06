@@ -11,6 +11,12 @@ public interface IOrderRepository
 
     /// <summary>按订单号替换订单，不存在返回 false。</summary>
     bool TryUpdate(Order order);
+
+    /// <summary>新增订单；订单号已存在时抛 <see cref="InvalidOperationException"/>。</summary>
+    void Add(Order order);
+
+    /// <summary>删除订单，不存在返回 false。</summary>
+    bool Remove(string orderId);
 }
 
 /// <summary>内存订单仓储：线程安全，用于演示与测试。</summary>
@@ -83,6 +89,34 @@ public sealed class InMemoryOrderRepository : IOrderRepository
 
             _orders[order.Id] = order;
             return true;
+        }
+    }
+
+    /// <inheritdoc />
+    public void Add(Order order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+
+        lock (_gate)
+        {
+            if (!_orders.TryAdd(order.Id, order))
+            {
+                throw new InvalidOperationException($"订单号 {order.Id} 已存在。");
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public bool Remove(string orderId)
+    {
+        if (string.IsNullOrWhiteSpace(orderId))
+        {
+            return false;
+        }
+
+        lock (_gate)
+        {
+            return _orders.Remove(orderId);
         }
     }
 

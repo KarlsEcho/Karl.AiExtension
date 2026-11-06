@@ -26,16 +26,20 @@ public sealed class ContractGenerationTests
     }
 
     [Fact]
-    public void Describe_ReturnsOrderServiceContractWithFourMethods()
+    public void Describe_ReturnsOrderServiceContractWithAllMethods()
     {
         IReadOnlyList<AiContractDescriptor> descriptors = AiContractBridgeRegistration.Describe();
 
         AiContractDescriptor contract = Assert.Single(descriptors);
         Assert.Equal("OrderService", contract.ContractName);
         Assert.Equal("Demo.Contract.IOrderService", contract.ContractFullName);
-        Assert.Equal(4, contract.Methods.Count);
+        Assert.Equal(8, contract.Methods.Count);
         Assert.Equal(
-            new[] { "order_search", "order_get", "order_cancel", "order_summary" },
+            new[]
+            {
+                "order_search", "order_get", "order_cancel", "order_summary",
+                "order_create", "order_update", "order_change_status", "order_delete",
+            },
             contract.Methods.Select(static method => method.SuggestedToolName).ToArray());
     }
 
@@ -56,7 +60,7 @@ public sealed class ContractGenerationTests
 
         Assert.Equal("OrderService", bridge.ContractName);
         Assert.Single(catalog.Contracts);
-        Assert.Equal(4, bridge.Methods.Count);
+        Assert.Equal(8, bridge.Methods.Count);
 
         IReadOnlyList<Order> matches = await bridge.SearchAsync("测试", null, CancellationToken.None);
 
@@ -72,3 +76,5 @@ public sealed class ContractGenerationTests
         return services.BuildServiceProvider();
     }
 }
+
+

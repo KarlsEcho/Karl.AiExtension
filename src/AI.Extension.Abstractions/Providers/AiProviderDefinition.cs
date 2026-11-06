@@ -54,11 +54,16 @@ public sealed record AiProviderDefinition
     public string? Notes { get; init; }
 }
 
-/// <summary>持久化的供应商状态：供应商列表 + 当前选中的供应商/模型。</summary>
+/// <summary>持久化的供应商状态：供应商列表 + 当前选中的供应商/模型 + 配置版本号。</summary>
+/// <param name="Providers">供应商列表。</param>
+/// <param name="ActiveProviderId">当前供应商 Id。</param>
+/// <param name="ActiveModelId">当前模型 Id。</param>
+/// <param name="Version">配置结构版本，用于内置预设迁移。</param>
 public sealed record AiProviderState(
     IReadOnlyList<AiProviderDefinition> Providers,
     string? ActiveProviderId,
-    string? ActiveModelId)
+    string? ActiveModelId,
+    int Version = 0)
 {
     /// <summary>空状态。</summary>
     public static readonly AiProviderState Empty = new(Array.Empty<AiProviderDefinition>(), null, null);

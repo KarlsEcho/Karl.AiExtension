@@ -1,4 +1,5 @@
 using System.Text;
+using AI.Extension;
 using AI.Extension.Chat;
 using AI.Extension.Mcp;
 using AI.Extension.Providers;
@@ -10,6 +11,49 @@ using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 
 Console.OutputEncoding = Encoding.UTF8;
+
+// ---------------------------------------------------------------------------
+// 模式 0：供应商诊断（不启动 MCP）
+//   dotnet run --project src/Demo.Host -- --check-providers
+//   读取 %APPDATA%\Karl.AiExtension\providers.json，列出供应商并对已启用者测试连通性。
+// ---------------------------------------------------------------------------
+if (args.Contains("--check-providers", StringComparer.OrdinalIgnoreCase))
+{
+    var services = new ServiceCollection();
+    services.AddLogging(builder => builder.AddConsole());
+    services.AddAiProviderManagement();
+
+    await using ServiceProvider provider = services.BuildServiceProvider();
+    IAiProviderManager manager = provider.GetRequiredService<IAiProviderManager>();
+    await manager.InitializeAsync();
+
+    Console.WriteLine($"配置文件：{JsonAiProviderStore.GetDefaultPath()}");
+    Console.WriteLine($"供应商：{manager.Providers.Count} 个，当前模型：{manager.ActiveModelLabel}\n");
+
+    foreach (AiProviderDefinition definition in manager.Providers)
+    {
+        string keyState = string.IsNullOrWhiteSpace(definition.ApiKey) ? "未填写" : "已填写";
+        Console.WriteLine($"[{definition.DisplayName}] id={definition.Id} enabled={definition.Enabled} endpoint={definition.Endpoint} key={keyState}");
+        Console.WriteLine($"    models: {string.Join(", ", definition.Models.Select(static model => model.Id))}");
+
+        if (!definition.Enabled)
+        {
+            Console.WriteLine("    （未启用，跳过连通性测试）");
+            continue;
+        }
+
+        bool reachable = await manager.TestConnectionAsync(definition.Id);
+        Console.WriteLine($"    测试连接: {(reachable ? "成功" : "失败")}");
+
+        if (reachable)
+        {
+            IReadOnlyList<string> discovered = await manager.DiscoverModelsAsync(definition.Id);
+            Console.WriteLine($"    端点返回模型: {string.Join(", ", discovered)}");
+        }
+    }
+
+    return;
+}
 
 // ---------------------------------------------------------------------------
 // 模式 1：标准 MCP Server（stdio）
@@ -24,6 +68,39 @@ if (args.Contains("--stdio", StringComparer.OrdinalIgnoreCase))
     mcpBuilder.Services.AddDemoStdioServer();
 
     await mcpBuilder.Build().RunAsync();
+    return;
+}
+
+// ---------------------------------------------------------------------------
+// 模式 1.5：真实模型单轮对话（使用当前配置的供应商；会调用 MCP 工具）
+//   dotnet run --project src/Demo.Host -- --chat "帮我新增一个客户叫测试客户，金额 100"
+// ---------------------------------------------------------------------------
+int chatArgumentIndex = Array.FindIndex(args, argument => string.Equals(argument, "--chat", StringComparison.OrdinalIgnoreCase));
+if (chatArgumentIndex >= 0)
+{
+    string prompt = chatArgumentIndex + 1 < args.Length
+        ? string.Join(' ', args.Skip(chatArgumentIndex + 1))
+        : "帮我统计一下现在的订单情况";
+
+    using IHost chatHost = await DemoBootstrap.StartDemoHostAsync();
+    IAiProviderManager chatProviderManager = chatHost.Services.GetRequiredService<IAiProviderManager>();
+    Console.WriteLine($"当前模型：{chatProviderManager.ActiveModelLabel}");
+
+    if (!chatProviderManager.HasActiveModel)
+    {
+        Console.WriteLine("（未配置可用供应商，本次使用离线规则客户端）");
+    }
+
+    var chatSession = chatHost.Services.GetRequiredService<ChatSession>();
+    Console.WriteLine($"用户：{prompt}");
+    AiChatReply chatReply = await chatSession.SendAsync(prompt);
+
+    foreach (AiToolCallTrace trace in chatReply.ToolCalls)
+    {
+        Console.WriteLine($"  ↳ 工具 {trace.ToolName}（{(trace.Success ? "成功" : "失败")}，{trace.Duration.TotalMilliseconds:F0} ms）");
+    }
+
+    Console.WriteLine($"AI：{chatReply.Text}");
     return;
 }
 

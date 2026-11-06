@@ -70,6 +70,22 @@ public sealed class DemoOfflineChatClient : IChatClient
     {
         string text = userText.Trim();
         string? orderId = ExtractOrderId(text);
+        decimal? amount = ExtractAmount(text);
+
+        // 0) 删除（破坏性：离线模式直接带 confirm，演示封装层的二次确认）
+        if (text.Contains("删除", StringComparison.Ordinal) || text.Contains("删掉", StringComparison.Ordinal))
+        {
+            if (orderId is null)
+            {
+                return Text("请告诉我要删除哪个订单号（例如 SO-1001）。删除不可恢复，我会先让你确认。");
+            }
+
+            return CallTool("order_delete", new Dictionary<string, object?>
+            {
+                ["orderId"] = orderId,
+                ["confirm"] = true,
+            });
+        }
 
         // 1) 取消订单
         if (text.Contains("取消", StringComparison.Ordinal))
@@ -86,7 +102,70 @@ public sealed class DemoOfflineChatClient : IChatClient
             });
         }
 
-        // 2) 统计/汇总
+        // 2) 新增订单
+        if (text.Contains("新增", StringComparison.Ordinal) ||
+            text.Contains("创建", StringComparison.Ordinal) ||
+            text.Contains("新建", StringComparison.Ordinal) ||
+            text.Contains("加一个", StringComparison.Ordinal) ||
+            text.Contains("下单", StringComparison.Ordinal))
+        {
+            if (amount is null)
+            {
+                return Text("请告诉我新订单的金额（例如「新增客户 A 金额 1200」）。");
+            }
+
+            return CallTool("order_create", new Dictionary<string, object?>
+            {
+                ["customerName"] = ExtractCustomerName(text),
+                ["amount"] = amount.Value,
+                ["remark"] = "通过 AI 离线演示创建",
+            });
+        }
+
+        // 3) 修改订单
+        if (text.Contains("修改", StringComparison.Ordinal) ||
+            text.Contains("更新", StringComparison.Ordinal) ||
+            text.Contains("改成", StringComparison.Ordinal) ||
+            text.Contains("调整", StringComparison.Ordinal))
+        {
+            if (orderId is null)
+            {
+                return Text("请告诉我要修改哪个订单号（例如 SO-1001）。");
+            }
+
+            var arguments = new Dictionary<string, object?> { ["orderId"] = orderId };
+            if (amount is not null)
+            {
+                arguments["amount"] = amount.Value;
+            }
+
+            arguments["remark"] = "通过 AI 离线演示修改";
+            return CallTool("order_update", arguments);
+        }
+
+        // 4) 变更状态
+        if (text.Contains("发货", StringComparison.Ordinal) ||
+            text.Contains("完成", StringComparison.Ordinal) ||
+            text.Contains("支付", StringComparison.Ordinal) ||
+            text.Contains("已付", StringComparison.Ordinal))
+        {
+            if (orderId is null)
+            {
+                return Text("请告诉我要变更哪个订单的状态（例如「把 SO-1001 标记为已支付」）。");
+            }
+
+            string targetStatus = text.Contains("发货", StringComparison.Ordinal) ? "Shipped"
+                : text.Contains("完成", StringComparison.Ordinal) ? "Completed"
+                : "Paid";
+
+            return CallTool("order_change_status", new Dictionary<string, object?>
+            {
+                ["orderId"] = orderId,
+                ["status"] = targetStatus,
+            });
+        }
+
+        // 5) 统计/汇总
         if (text.Contains("统计", StringComparison.Ordinal) ||
             text.Contains("汇总", StringComparison.Ordinal) ||
             text.Contains("概况", StringComparison.Ordinal) ||
@@ -150,6 +229,46 @@ public sealed class DemoOfflineChatClient : IChatClient
 
         string id = candidate.Substring(0, length);
         return id.Length > 3 ? id : null;
+    }
+
+    /// <summary>从文本里提取第一个金额（支持小数与千分位逗号）。</summary>
+    private static decimal? ExtractAmount(string text)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(text, @"(\d[\d,]*(?:\.\d+)?)");
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        string raw = match.Groups[1].Value.Replace(",", string.Empty, StringComparison.Ordinal);
+        return decimal.TryParse(raw, out decimal amount) && amount > 0 ? amount : null;
+    }
+
+    /// <summary>从文本里猜客户名：优先「客户/给/为」后面的片段，否则用「新客户」。</summary>
+    private static string ExtractCustomerName(string text)
+    {
+        foreach (string marker in new[] { "客户", "给", "为" })
+        {
+            int index = text.IndexOf(marker, StringComparison.Ordinal);
+            if (index < 0)
+            {
+                continue;
+            }
+
+            string tail = text.Substring(index + marker.Length).Trim(' ', '，', '。', ':', '：');
+            int cut = tail.IndexOfAny([' ', '，', '。', ',', '金', '额']);
+            if (cut > 0)
+            {
+                tail = tail.Substring(0, cut);
+            }
+
+            if (tail.Length > 0)
+            {
+                return tail;
+            }
+        }
+
+        return "AI 新增客户";
     }
 
     private static string ExtractKeyword(string text)

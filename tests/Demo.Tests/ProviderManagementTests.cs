@@ -182,6 +182,37 @@ public sealed class ProviderManagementTests
         Assert.Empty(store.CurrentState.Providers);
     }
 
+    [Fact]
+    public async Task Manager_MigratesOutdatedDeepSeekPreset_KeepingKeyAndEnabledState()
+    {
+        // 模拟旧版本安装：DeepSeek 指向旧的 /v1 + 已下线模型，用户已填 Key 并启用
+        var outdated = new AiProviderDefinition
+        {
+            Id = "deepseek",
+            DisplayName = "DeepSeek",
+            Endpoint = "https://api.deepseek.com/v1",
+            ApiKey = "sk-legacy-key",
+            Enabled = true,
+            DefaultModelId = "deepseek-chat",
+            Models = [new AiModelDefinition { Id = "deepseek-chat" }, new AiModelDefinition { Id = "deepseek-reasoner" }],
+        };
+
+        var store = new InMemoryAiProviderStore(new AiProviderState([outdated], "deepseek", "deepseek-chat", Version: 0));
+        var manager = new AiProviderManager(store, seedProviders: []);
+
+        await manager.InitializeAsync();
+
+        AiProviderDefinition migrated = Assert.Single(manager.Providers);
+        Assert.Equal("https://api.deepseek.com", migrated.Endpoint);
+        Assert.Equal("sk-legacy-key", migrated.ApiKey);
+        Assert.True(migrated.Enabled);
+        Assert.Contains(migrated.Models, model => model.Id == "deepseek-flash");
+        Assert.Contains(migrated.Models, model => model.Id == "deepseek-v4-pro");
+        Assert.DoesNotContain(migrated.Models, model => model.Id == "deepseek-chat");
+        Assert.Equal("deepseek-flash", manager.ActiveModel?.Id);
+        Assert.Equal(2, store.CurrentState.Version);
+    }
+
     private static async Task<AiProviderManager> CreateManagerAsync()
     {
         var manager = new AiProviderManager(new InMemoryAiProviderStore(), seedProviders: []);

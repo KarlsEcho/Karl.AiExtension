@@ -117,7 +117,8 @@ public sealed class JsonAiProviderStore : IAiProviderStore
             })
             .ToArray(),
         string.IsNullOrWhiteSpace(dto.ActiveProviderId) ? null : dto.ActiveProviderId,
-        string.IsNullOrWhiteSpace(dto.ActiveModelId) ? null : dto.ActiveModelId);
+        string.IsNullOrWhiteSpace(dto.ActiveModelId) ? null : dto.ActiveModelId,
+        dto.Version);
 
     private ProviderStateDto ToDto(AiProviderState state) => new()
     {
@@ -138,6 +139,7 @@ public sealed class JsonAiProviderStore : IAiProviderStore
         }).ToList(),
         ActiveProviderId = state.ActiveProviderId,
         ActiveModelId = state.ActiveModelId,
+        Version = state.Version,
     };
 
     private sealed class ProviderStateDto
@@ -147,6 +149,8 @@ public sealed class JsonAiProviderStore : IAiProviderStore
         public string? ActiveProviderId { get; set; }
 
         public string? ActiveModelId { get; set; }
+
+        public int Version { get; set; }
     }
 
     private sealed class ProviderDto
@@ -179,3 +183,4 @@ public sealed class JsonAiProviderStore : IAiProviderStore
         public string? DisplayName { get; set; }
     }
 }
+

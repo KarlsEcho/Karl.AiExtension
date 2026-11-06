@@ -86,6 +86,95 @@ public sealed class OrdersViewModelTests
         Assert.Contains("SO-1002", summary, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task CreateAsync_AddsOrderAndSelectsIt()
+    {
+        OrdersViewModel viewModel = CreateViewModel();
+        await viewModel.LoadAsync();
+
+        OrderOperationResult result = await viewModel.CreateAsync("新客户", 1999.5m, "测试新增", CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Order);
+        Assert.Equal("新客户", result.Order!.CustomerName);
+        Assert.Equal(6, viewModel.Orders.Count);
+        Assert.Equal(result.Order.Id, viewModel.SelectedOrder?.Id);
+        Assert.Equal("新客户", viewModel.EditCustomerName);
+        Assert.Equal("1999.5", viewModel.EditAmountText);
+    }
+
+    [Fact]
+    public async Task CreateAsync_ValidatesInput()
+    {
+        OrdersViewModel viewModel = CreateViewModel();
+        await viewModel.LoadAsync();
+
+        Assert.False((await viewModel.CreateAsync("  ", 100m, null, CancellationToken.None)).Success);
+        Assert.False((await viewModel.CreateAsync("客户", 0m, null, CancellationToken.None)).Success);
+        Assert.Equal(5, viewModel.Orders.Count);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ChangesFieldsAndRefreshesRows()
+    {
+        OrdersViewModel viewModel = CreateViewModel();
+        await viewModel.LoadAsync();
+
+        OrderOperationResult result = await viewModel.UpdateAsync(
+            "SO-1002", "改名客户", 999.9m, "改备注", CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal("改名客户", result.Order!.CustomerName);
+        Assert.Equal(999.9m, result.Order.Amount);
+        Assert.Equal("改备注", result.Order.Remark);
+
+        Order row = Assert.Single(viewModel.Orders, order => order.Id == "SO-1002");
+        Assert.Equal("改名客户", row.CustomerName);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_NullFieldsKeepOriginalValues()
+    {
+        OrdersViewModel viewModel = CreateViewModel();
+        await viewModel.LoadAsync();
+
+        Order before = viewModel.Orders.Single(order => order.Id == "SO-1003");
+        OrderOperationResult result = await viewModel.UpdateAsync("SO-1003", null, null, null, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal(before.CustomerName, result.Order!.CustomerName);
+        Assert.Equal(before.Amount, result.Order.Amount);
+        Assert.Equal(before.Remark, result.Order.Remark);
+    }
+
+    [Fact]
+    public async Task ChangeStatusAsync_RejectsTerminalAndUpdatesNormalOrders()
+    {
+        OrdersViewModel viewModel = CreateViewModel();
+        await viewModel.LoadAsync();
+
+        OrderOperationResult rejected = await viewModel.ChangeStatusAsync("SO-1004", OrderStatus.Shipped, CancellationToken.None);
+        Assert.False(rejected.Success);
+
+        OrderOperationResult changed = await viewModel.ChangeStatusAsync("SO-1001", OrderStatus.Paid, CancellationToken.None);
+        Assert.True(changed.Success);
+        Assert.Equal(OrderStatus.Paid, changed.Order!.Status);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_RemovesOrderAndReselects()
+    {
+        OrdersViewModel viewModel = CreateViewModel();
+        await viewModel.LoadAsync();
+
+        OrderOperationResult result = await viewModel.DeleteAsync("SO-1003", CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal(4, viewModel.Orders.Count);
+        Assert.DoesNotContain(viewModel.Orders, order => order.Id == "SO-1003");
+        Assert.NotNull(viewModel.SelectedOrder);
+    }
+
     private static OrdersViewModel CreateViewModel(UiActivityTracker? tracker = null)
         => new(
             new InMemoryOrderRepository(),

@@ -73,6 +73,22 @@ Button.Click → AsyncRelayCommand → OrdersViewModel.CancelAsync()
 
 两条路径最终汇聚在 `OrdersViewModel` 的同一段业务逻辑上——这是本架构「UI 与 Agent 平权」的核心。
 
+### 2.2.1 示例暴露的 MCP 工具（8 个）
+
+| 工具 | 读/写 | 契约方法 |
+| --- | --- | --- |
+| `order_search` | 读 | `SearchAsync` |
+| `order_get` | 读 | `GetByIdAsync` |
+| `order_summary` | 读 | `GetSummaryAsync` |
+| `order_cancel` | 写 | `CancelAsync`（保留取消原因） |
+| `order_create` | 写 | `CreateAsync` |
+| `order_update` | 写 | `UpdateAsync`（未提供的字段保持不变） |
+| `order_change_status` | 写 | `ChangeStatusAsync`（终态订单拒绝再改） |
+| `order_delete` | 写 | `DeleteAsync`（封装层要求 `confirm=true` 才执行） |
+
+写入类工具最终都落到同一个 `OrdersViewModel`，因此 **AI 修改数据后 WPF 表格/Blazor 页面会同步刷新**；
+WPF 表格下方的「新增 / 编辑订单」表单直接调用同一批 ViewModel 方法，人类与 Agent 两条路径行为一致。
+
 ### 2.3 进程内 MCP 的建立顺序
 
 1. `McpServerBridge` 创建两对内存管道（`System.IO.Pipelines`）；
@@ -185,7 +201,9 @@ Blazor                    AiModelSelector（供应商/模型下拉 + 切换，�
 - 状态 = 供应商列表 + 当前供应商 Id + 当前模型 Id，存放于 `%APPDATA%\Karl.AiExtension\providers.json`（`KARL_AI_DATA_DIR` 可覆盖目录）；
 - 写入前 API Key 经 `IAiSecretProtector` 处理：Windows 用 DPAPI（CurrentUser 作用域）加密为 `dpapi:<base64>`，其他平台降级为 `plain:<base64>`（仅混淆，生产需替换为平台密钥链）；
 - 文件写入采用「临时文件 + 原子替换」，配置损坏时按空状态启动而不是崩溃；
-- 首次运行写入内置预设（DeepSeek / OpenAI / 阿里云百炼 / 本地 Ollama，默认禁用、无 Key），环境变量 `KARL_AI_*` / `OPENAI_*` 存在时额外导入一个「环境变量导入」供应商并设为当前。
+- 首次运行写入内置预设（DeepSeek / OpenAI / 阿里云百炼 / 本地 Ollama，默认禁用、无 Key），环境变量 `KARL_AI_*` / `OPENAI_*` 存在时额外导入一个「环境变量导入」供应商并设为当前；
+- 配置带版本号（当前 `AiProviderPresets.SchemaVersion = 2`）：升级后启动时会把仍是内置预设的供应商迁移到最新端点/模型，**保留用户的 API Key 与启用状态**，自定义供应商不受影响；
+- DeepSeek 预设以官方 2026 文档为准：OpenAI 格式 base_url = `https://api.deepseek.com`，模型 `deepseek-flash` / `deepseek-v4-pro`（旧名 `deepseek-chat` / `deepseek-reasoner` 已下线）。可用 `Demo.Host -- --check-providers` 做连通性诊断。
 
 ### 7.3 运行时切换
 
@@ -230,9 +248,10 @@ Blazor                    AiModelSelector（供应商/模型下拉 + 切换，�
 | --- | --- |
 | `AiContractGeneratorTests` | 用 `CSharpGeneratorDriver` 直接驱动生成器：MCP 层绑定声明 → 产物、契约层零 AI 特性、泛型跳过诊断、非接口目标诊断、生成代码可编译 |
 | `ContractGenerationTests` | `Describe()` 契约清单；桥接转发到契约实现 |
-| `McpRoundTripTests` | 真实 Host + 真实 MCP 协议：工具枚举、参数校验错误、取消订单写回仓储、对话驱动工具、UI 上下文注入 |
-| `OrdersViewModelTests` | 契约实现的业务行为（过滤、取消规则、统计）与 UI 日志记录 |
+| `McpRoundTripTests` | 真实 Host + 真实 MCP 协议：工具枚举（8 个）、参数校验错误、取消订单写回仓储、新增/修改/改状态/删除的完整写链路（含 `confirm` 防护）、对话驱动工具、UI 上下文注入 |
+| `OrdersViewModelTests` | 契约实现的业务行为（过滤、取消规则、统计、新增/修改/改状态/删除）与 UI 日志记录 |
 | `UiActivityTrackerTests` | 环形缓冲容量/顺序/截断、上下文摘要格式 |
 | `ProviderManagementTests` | 供应商配置加密落盘/读取、校验（启用必须有 Key）、规范化、当前模型切换与 accessor 重建、删除当前供应商后的回退 |
+
 
 

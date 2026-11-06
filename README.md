@@ -98,7 +98,14 @@ dotnet test                                   # 生成器 + 业务/闭环测试
 dotnet run --project src/Demo.Host
 ```
 
-它会：建容器 → 启动进程内 MCP Server → 连接进程内 MCP Client → 列出 4 个工具 → 直接调用工具 → 用离线规则模型走 3 轮完整对话（统计 / 查详情 / 取消订单），并打印工具调用轨迹。
+它会：建容器 → 启动进程内 MCP Server → 连接进程内 MCP Client → 列出 8 个工具 → 直接调用工具 → 走一轮完整对话（统计 / 查详情 / 取消订单），并打印工具调用轨迹。
+
+诊断命令（不启动 MCP）：
+
+```powershell
+dotnet run --project src/Demo.Host -- --check-providers   # 列出供应商并对已启用者测试连通性/拉取模型
+dotnet run --project src/Demo.Host -- --chat "帮我新增一个客户叫测试客户，金额 100"   # 用真实模型跑一轮工具调用
+```
 
 ### 3.2 看界面：WPF 宿主
 
@@ -106,13 +113,14 @@ dotnet run --project src/Demo.Host
 dotnet run --project src/Demo.App
 ```
 
-左侧是传统订单表格（人类路径），右侧是 AI 面板（Agent 路径）。在右栏输入「帮我统计一下现在的订单情况」「看看 SO-1002」「取消 SO-1001，原因是客户重复下单」，可以看到：
+左侧是传统订单表格（人类路径），右侧是 AI 面板（Agent 路径）。
 
-- AI 调用 MCP 工具，工具调用轨迹实时显示；
-- 工具最终走 `OrdersViewModel`，**左侧表格同步变化**（AI 与 UI 共用同一套业务逻辑）；
-- 「工具与契约」页签展示源生成器产出的契约清单、MCP 实际暴露的工具、以及 UI 上下文环形日志。
+- 表格下方有「新增 / 编辑订单」区：填写客户、金额、备注后点「新增订单」；选中行会自动带入内容，点「保存到选中」「删除选中」即可改/删数据（AI 与 UI 走同一段业务逻辑）；
+- 右栏可以直接说：「帮我统计一下现在的订单情况」「看看 SO-1002」「取消 SO-1001，原因是客户重复下单」「把 SO-1002 标记为已支付」「新增一个客户叫云栖科技金额 128000」「删除 SO-1006」；
+- 每次 AI 调用 MCP 工具，工具调用轨迹会实时显示，**左侧表格同步变化**；
+- 「工具与契约」页签展示源生成器产出的契约清单、MCP 实际暴露的 8 个工具、以及 UI 上下文环形日志。
 
-无界面自检（CI 可用）：
+无界面自检（CI 可用，会验证一次真实的「创建 → 删除」写链路）：
 
 ```powershell
 src\Demo.App\bin\Debug\net10.0-windows\Demo.App.exe --smoke
@@ -127,7 +135,7 @@ dotnet run --project src/Demo.Host -- --stdio
 
 可在 Claude Desktop / VS Code Copilot 的 `mcp.json` 里指到该命令，验证「同一套工具既能被应用内 AI 用，也能被任意 MCP 宿主用」。
 
-### 3.5 接入真实大模型（供应商 / 模型管理）
+### 3.4 接入真实大模型（供应商 / 模型管理）
 
 不写配置文件也能用：WPF 右侧「**模型与供应商**」页签内置了 DeepSeek / OpenAI / 阿里云百炼 / 本地 Ollama 预设。
 
@@ -136,17 +144,22 @@ dotnet run --project src/Demo.Host -- --stdio
 3. 点「设为当前模型」立即生效（无需重启）；「清除当前模型」回到离线兜底。
 
 配置保存在 `%APPDATA%\Karl.AiExtension\providers.json`（可用 `KARL_AI_DATA_DIR` 改目录），WPF / Blazor / 控制台共享同一份。
+内置预设带版本号：升级后启动时会自动把旧安装里的预设迁移到最新端点/模型，**保留你填的 API Key 与启用状态**。
 也支持免配置文件的环境变量启动（首次运行会导入成一个名为「环境变量导入」的供应商）：
 
 ```powershell
-$env:KARL_AI_ENDPOINT = "https://api.deepseek.com/v1"
+$env:KARL_AI_ENDPOINT = "https://api.deepseek.com"
 $env:KARL_AI_API_KEY  = "sk-..."
-$env:KARL_AI_MODEL    = "deepseek-chat"
+$env:KARL_AI_MODEL    = "deepseek-flash"
 ```
+
+> DeepSeek 参数以官方 2026 文档为准：OpenAI 格式 base_url = `https://api.deepseek.com`（不带 `/v1`），
+> 当前模型为 `deepseek-flash` / `deepseek-v4-pro`（旧名 `deepseek-chat` / `deepseek-reasoner` 已下线）。
+> 可用 `dotnet run --project src/Demo.Host -- --check-providers` 直接验证端点与模型。
 
 未配置任何可用供应商时，`IChatClientAccessor` 会退回兜底客户端（`Demo.Core` 注入离线规则客户端），保证骨架永远可运行。
 
-### 3.6 Blazor 宿主
+### 3.5 Blazor 宿主
 
 ```powershell
 dotnet run --project src/Demo.BlazorHost   # http://localhost:5180
@@ -176,9 +189,10 @@ dotnet run --project src/Demo.BlazorHost   # http://localhost:5180
 ## 5. 当前边界（骨架阶段的诚实说明）
 
 - **流式输出**：会话目前是「一次完整回复」，`ChatSession` 预留了工具轨迹上报，但未做逐 Token 推送；`IChatClient` 支持流式，接入即可。
-- **供应商管理**：内置 4 个 OpenAI 兼容预设，支持运行时增删改、测试连接、拉取模型、切换当前模型；API Key 用 Windows DPAPI 加密后落盘（非 Windows 平台降级为 Base64 混淆，需换成平台密钥链）。
+- **供应商管理**：内置 4 个 OpenAI 兼容预设，支持运行时增删改、测试连接、拉取模型、切换当前模型；API Key 用 Windows DPAPI 加密后落盘（非 Windows 平台降级为 Base64 混淆，需换成平台密钥链）。内置预设带版本号，升级会自动迁移旧配置（保留 Key 与启用状态）。
 - **人工确认（Human-in-the-loop）**：敏感工具目前只做参数校验与日志，未做「AI 请求 → 原生弹窗确认」的拦截；`ChatSession` 的工具循环是显式写的，加这一步只需在调用前插入一次用户确认。
 - **权限模型**：没有 RBAC，只有工具级校验。
+- **数据操作**：订单示例支持增删改查——查询（`order_search` / `order_get` / `order_summary`）、改（`order_update` / `order_change_status` / `order_cancel`）、增（`order_create`）、删（`order_delete`，必须显式 `confirm=true`）；WPF 表格下方也有对应的新增/编辑/删除表单。
 - **契约层零 AI 依赖**：`Demo.Contract` 不引用 `AI.Extension.Abstractions`（见 csproj），「暴露成哪些工具、工具名、描述」全部在 `Demo.MCP` 声明与实现。
 - **生成器增量性能**：绑定声明与 MCP 在同一程序集，已用语法级 `ForAttributeWithMetadataName` 增量 Provider；契约方法签名从元数据读取，契约规模很大时可再加一层按接口缓存的包装。
 - **Blazor**：已完成 Interactive Server 宿主（`Demo.BlazorHost`）；WASM / 多 circuit 多会话隔离等限制见 `docs/BLAZOR.md`。

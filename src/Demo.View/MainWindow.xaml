@@ -60,6 +60,75 @@
                 </DockPanel>
             </Border>
 
+            <Border DockPanel.Dock="Bottom" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="16,10" Background="#FFFFFF">
+                <StackPanel>
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right"
+                                   Text="选中行会把内容带入编辑区；新增时直接填写后点「新增订单」"
+                                   FontSize="10"
+                                   Foreground="#94A3B8"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Text="新增 / 编辑订单"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="#0F172A" />
+                    </DockPanel>
+
+                    <WrapPanel Margin="0,8,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="客户" FontSize="11" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,4,0" />
+                        <TextBox Width="130"
+                                 Padding="6,4"
+                                 Text="{Binding EditCustomerName, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,0,12,6" />
+
+                        <TextBlock Text="金额" FontSize="11" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,4,0" />
+                        <TextBox Width="90"
+                                 Padding="6,4"
+                                 Text="{Binding EditAmountText, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,0,12,6" />
+
+                        <TextBlock Text="备注" FontSize="11" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,4,0" />
+                        <TextBox Width="190"
+                                 Padding="6,4"
+                                 Text="{Binding EditRemark, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,0,12,6" />
+
+                        <Button Content="新增订单"
+                                Command="{Binding CreateOrderCommand}"
+                                Padding="12,5"
+                                Margin="0,0,8,6"
+                                Background="#059669"
+                                Foreground="White"
+                                BorderThickness="0"
+                                Cursor="Hand" />
+                        <Button Content="保存到选中"
+                                Command="{Binding UpdateSelectedOrderCommand}"
+                                Padding="12,5"
+                                Margin="0,0,8,6"
+                                Background="#2563EB"
+                                Foreground="White"
+                                BorderThickness="0"
+                                Cursor="Hand" />
+                        <Button Content="删除选中"
+                                Command="{Binding DeleteSelectedOrderCommand}"
+                                Padding="12,5"
+                                Margin="0,0,8,6"
+                                Background="#B91C1C"
+                                Foreground="White"
+                                BorderThickness="0"
+                                Cursor="Hand" />
+                        <Button Content="重置"
+                                Command="{Binding ClearEditorCommand}"
+                                Padding="12,5"
+                                Margin="0,0,8,6"
+                                Background="#64748B"
+                                Foreground="White"
+                                BorderThickness="0"
+                                Cursor="Hand" />
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+
             <Border DockPanel.Dock="Bottom" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="16,8" Background="#FFFFFF">
                 <DockPanel>
                     <ProgressBar DockPanel.Dock="Right"

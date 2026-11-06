@@ -158,6 +158,161 @@ public sealed class OrderTools
         }
     }
 
+    /// <summary>新增订单。</summary>
+    [McpServerTool(Name = "order_create")]
+    [Description("新增一笔订单：客户名称、金额、可选备注。新订单默认为待支付状态。会修改数据。")]
+    public async Task<ToolOutcome<OrderOperationResult>> CreateOrderAsync(
+        [Description("客户名称")] string customerName,
+        [Description("订单金额，必须大于 0")] decimal amount,
+        [Description("备注，可留空")] string? remark = null,
+        CancellationToken cancellationToken = default)
+    {
+        _activityTracker.Record(UiActivityCategory.AgentAction, $"AI 调用 order_create（customer={customerName}, amount={amount}）");
+
+        if (string.IsNullOrWhiteSpace(customerName))
+        {
+            return ToolOutcome<OrderOperationResult>.Fail("客户名称不能为空。");
+        }
+
+        try
+        {
+            OrderOperationResult result = await _bridge
+                .CreateAsync(customerName.Trim(), amount, string.IsNullOrWhiteSpace(remark) ? null : remark.Trim(), cancellationToken)
+                .ConfigureAwait(false);
+
+            return result.Success
+                ? ToolOutcome<OrderOperationResult>.Ok(result)
+                : ToolOutcome<OrderOperationResult>.Fail(result.Message);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            return ToolOutcome<OrderOperationResult>.Fail($"新增订单失败：{exception.Message}");
+        }
+    }
+
+    /// <summary>修改订单。</summary>
+    [McpServerTool(Name = "order_update")]
+    [Description("修改订单的客户名称 / 金额 / 备注；未提供的字段保持不变。会修改数据。")]
+    public async Task<ToolOutcome<OrderOperationResult>> UpdateOrderAsync(
+        [Description("要修改的订单号")] string orderId,
+        [Description("新客户名称，可留空表示不修改")] string? customerName = null,
+        [Description("新金额，可留空表示不修改")] decimal? amount = null,
+        [Description("新备注；传空字符串表示清空备注，留空表示不修改")] string? remark = null,
+        CancellationToken cancellationToken = default)
+    {
+        _activityTracker.Record(UiActivityCategory.AgentAction, $"AI 调用 order_update（orderId={orderId}）");
+
+        if (string.IsNullOrWhiteSpace(orderId))
+        {
+            return ToolOutcome<OrderOperationResult>.Fail("订单号不能为空。");
+        }
+
+        if (amount is <= 0)
+        {
+            return ToolOutcome<OrderOperationResult>.Fail("金额必须大于 0。");
+        }
+
+        try
+        {
+            OrderOperationResult result = await _bridge
+                .UpdateAsync(orderId.Trim(), customerName, amount, remark, cancellationToken)
+                .ConfigureAwait(false);
+
+            return result.Success
+                ? ToolOutcome<OrderOperationResult>.Ok(result)
+                : ToolOutcome<OrderOperationResult>.Fail(result.Message);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            return ToolOutcome<OrderOperationResult>.Fail($"修改订单失败：{exception.Message}");
+        }
+    }
+
+    /// <summary>变更订单状态。</summary>
+    [McpServerTool(Name = "order_change_status")]
+    [Description("变更订单状态，例如把待支付订单标记为 Paid、已支付订单标记为 Shipped / Completed。已完成或已取消的订单不能再变更。会修改数据。")]
+    public async Task<ToolOutcome<OrderOperationResult>> ChangeOrderStatusAsync(
+        [Description("订单号，例如 SO-1001")] string orderId,
+        [Description("目标状态：Pending / Paid / Shipped / Completed（取消请用 order_cancel）")] string status,
+        CancellationToken cancellationToken = default)
+    {
+        _activityTracker.Record(UiActivityCategory.AgentAction, $"AI 调用 order_change_status（orderId={orderId}, status={status}）");
+
+        if (string.IsNullOrWhiteSpace(orderId))
+        {
+            return ToolOutcome<OrderOperationResult>.Fail("订单号不能为空。");
+        }
+
+        if (!TryParseStatus(status, out OrderStatus? parsedStatus, out string? statusError) || parsedStatus is null)
+        {
+            return ToolOutcome<OrderOperationResult>.Fail(statusError ?? "无法识别的订单状态。");
+        }
+
+        try
+        {
+            OrderOperationResult result = await _bridge
+                .ChangeStatusAsync(orderId.Trim(), parsedStatus.Value, cancellationToken)
+                .ConfigureAwait(false);
+
+            return result.Success
+                ? ToolOutcome<OrderOperationResult>.Ok(result)
+                : ToolOutcome<OrderOperationResult>.Fail(result.Message);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            return ToolOutcome<OrderOperationResult>.Fail($"变更状态失败：{exception.Message}");
+        }
+    }
+
+    /// <summary>删除订单。</summary>
+    [McpServerTool(Name = "order_delete")]
+    [Description("物理删除订单，不可恢复。破坏性操作，必须显式传 confirm=true 才会执行。")]
+    public async Task<ToolOutcome<OrderOperationResult>> DeleteOrderAsync(
+        [Description("要删除的订单号")] string orderId,
+        [Description("必须为 true 才执行删除，用于防止误删")] bool confirm,
+        CancellationToken cancellationToken = default)
+    {
+        _activityTracker.Record(UiActivityCategory.AgentAction, $"AI 调用 order_delete（orderId={orderId}, confirm={confirm}）");
+
+        if (!confirm)
+        {
+            return ToolOutcome<OrderOperationResult>.Fail("删除是破坏性操作：请先向用户确认，再以 confirm=true 重新调用。");
+        }
+
+        if (string.IsNullOrWhiteSpace(orderId))
+        {
+            return ToolOutcome<OrderOperationResult>.Fail("订单号不能为空。");
+        }
+
+        try
+        {
+            OrderOperationResult result = await _bridge.DeleteAsync(orderId.Trim(), cancellationToken).ConfigureAwait(false);
+            return result.Success
+                ? ToolOutcome<OrderOperationResult>.Ok(result)
+                : ToolOutcome<OrderOperationResult>.Fail(result.Message);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            return ToolOutcome<OrderOperationResult>.Fail($"删除订单失败：{exception.Message}");
+        }
+    }
+
     private static bool TryParseStatus(string? status, out OrderStatus? parsed, out string? error)
     {
         parsed = null;

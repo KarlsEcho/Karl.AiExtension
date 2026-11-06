@@ -22,7 +22,7 @@ Blazor 外壳**没有**任何自己的 MCP 客户端、工具循环或业务逻�
 | 对话 + 工具循环 + 历史 + 错误回灌 | `AI.Extension.Core` 的 `ChatSession.SendAsync(string) → AiChatReply{Text, ToolCalls}` |
 | 进程内 MCP Server ⇄ Client 桥 | `AI.Extension.Core/Mcp/McpServerBridge`（`ConnectAsync()` 后 `Tools` 可用） |
 | 业务数据源 / 契约实现 | `Demo.ViewModel.OrdersViewModel`（`ObservableCollection<Order>`、`StatusMessage`、`SelectedOrder`，同时实现 `IOrderService`） |
-| MCP 工具（语义封装） | `Demo.MCP.OrderTools`（`order_search` / `order_get` / `order_cancel` / `order_summary`） |
+| MCP 工具（语义封装） | `Demo.MCP.OrderTools`（8 个：`order_search` / `order_get` / `order_summary` / `order_cancel` / `order_create` / `order_update` / `order_change_status` / `order_delete`） |
 | 组合根 | `Demo.Core.DemoBootstrap.AddDemoCore()`（业务 + AI 会话 + 进程内 MCP Server） |
 | UI 上下文日志 | `IUiActivityTracker`（Blazor 与 WPF 写的是同一份环形日志） |
 | 线程调度抽象 | `IUiDispatcher`，Blazor 下继续使用默认 `ImmediateUiDispatcher` |
@@ -217,3 +217,4 @@ $r.Content.Contains('暂无可用供应商')       # 未启用任何供应商时
   清除 `src/Demo.MCP/bin`、`src/Demo.BlazorHost/bin|obj` 后重新构建即可。
 - **`app.Run()` 在 `StartAsync` 之后不可用**：见上文「为什么最后不是字面上的 app.Run()」。
 - **端口被占用**：先 `Get-NetTCPConnection -LocalPort 5180 -State Listen` 确认，再结束残留进程。
+

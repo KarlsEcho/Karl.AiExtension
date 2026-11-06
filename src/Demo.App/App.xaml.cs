@@ -102,6 +102,34 @@ public partial class App : Application
             _ = host.Services.GetRequiredService<MainWindow>();
             lines.Add("UI: MainWindow 构造成功");
 
+            // 验证桌面端「写操作」链路：MCP 工具 -> 语义封装 -> ViewModel -> UI 集合
+            var repository = host.Services.GetRequiredService<Demo.Model.IOrderRepository>();
+            int beforeCount = repository.GetAll().Count;
+            var createResult = await bridge.Client.CallToolAsync(
+                "order_create",
+                new Dictionary<string, object?>
+                {
+                    ["customerName"] = "冒烟测试客户",
+                    ["amount"] = 66m,
+                    ["remark"] = "smoke",
+                });
+            string createText = string.Join(
+                "\n",
+                createResult.Content.OfType<ModelContextProtocol.Protocol.TextContentBlock>().Select(static block => block.Text));
+            lines.Add($"WRITE_CREATE: {createText}");
+            lines.Add($"ORDERS_AFTER_CREATE: repo={repository.GetAll().Count} ui={orders.Orders.Count}");
+
+            Demo.Model.Order? createdOrder = repository.GetAll()
+                .FirstOrDefault(static order => order.CustomerName == "冒烟测试客户");
+            if (createdOrder is not null)
+            {
+                await bridge.Client.CallToolAsync(
+                    "order_delete",
+                    new Dictionary<string, object?> { ["orderId"] = createdOrder.Id, ["confirm"] = true });
+            }
+
+            lines.Add($"ORDERS_AFTER_DELETE: repo={repository.GetAll().Count} ui={orders.Orders.Count} (before={beforeCount})");
+
             AI.Extension.Chat.AiChatReply reply = await session.SendAsync("帮我统计一下现在的订单情况");
             lines.Add($"REPLY: {reply.Text.ReplaceLineEndings(" ")}");
             lines.Add($"TOOLCALLS: {string.Join(",", reply.ToolCalls.Select(static trace => trace.ToolName))}");

@@ -24,4 +24,12 @@ namespace Demo.MCP.Ai;
     Description = "取消指定订单并记录取消原因。已完成或已取消的订单无法取消，会返回失败结果。")]
 [AiMethod(nameof(IOrderService.GetSummaryAsync), ToolName = "order_summary",
     Description = "统计当前订单：总数、总金额与各状态数量。")]
+[AiMethod(nameof(IOrderService.CreateAsync), ToolName = "order_create",
+    Description = "新增订单：客户名、金额、备注。新订单默认状态为待支付。")]
+[AiMethod(nameof(IOrderService.UpdateAsync), ToolName = "order_update",
+    Description = "修改订单的客户名/金额/备注，未提供的字段保持不变。")]
+[AiMethod(nameof(IOrderService.ChangeStatusAsync), ToolName = "order_change_status",
+    Description = "变更订单状态：Paid / Shipped / Completed 等。已完成或已取消的订单不允许再改状态。")]
+[AiMethod(nameof(IOrderService.DeleteAsync), ToolName = "order_delete",
+    Description = "物理删除订单。破坏性操作，需要显式确认。")]
 internal sealed class OrderServiceBinding;

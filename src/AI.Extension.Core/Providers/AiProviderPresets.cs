@@ -6,6 +6,12 @@ namespace AI.Extension.Providers;
 /// </summary>
 public static class AiProviderPresets
 {
+    /// <summary>
+    /// 内置预设的版本号。递增后，管理器会在启动时把「旧安装里的内置预设」迁移到新参数
+    /// （保留用户填写的 API Key 与启用状态），避免用户机器上残留过期的端点/模型。
+    /// </summary>
+    public const int SchemaVersion = 2;
+
     /// <summary>内置供应商列表。</summary>
     public static IReadOnlyList<AiProviderDefinition> CreateDefaults() =>
     [
@@ -13,15 +19,16 @@ public static class AiProviderPresets
         {
             Id = "deepseek",
             DisplayName = "DeepSeek",
-            Endpoint = "https://api.deepseek.com/v1",
+            // 官方 2026 文档：OpenAI 格式 base_url = https://api.deepseek.com（不带 /v1）
+            Endpoint = "https://api.deepseek.com",
             Enabled = false,
-            DefaultModelId = "deepseek-chat",
+            DefaultModelId = "deepseek-flash",
             Models =
             [
-                new AiModelDefinition { Id = "deepseek-chat" },
-                new AiModelDefinition { Id = "deepseek-reasoner" },
+                new AiModelDefinition { Id = "deepseek-flash", DisplayName = "DeepSeek V4.1 Flash" },
+                new AiModelDefinition { Id = "deepseek-v4-pro", DisplayName = "DeepSeek V4 Pro" },
             ],
-            Notes = "OpenAI 兼容端点 https://api.deepseek.com/v1",
+            Notes = "OpenAI 兼容端点 https://api.deepseek.com；模型 deepseek-flash / deepseek-v4-pro（旧名 deepseek-chat 已下线）",
         },
         new AiProviderDefinition
         {

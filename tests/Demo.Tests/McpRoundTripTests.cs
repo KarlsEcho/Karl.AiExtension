@@ -21,7 +21,11 @@ public sealed class McpRoundTripTests
 
         Assert.True(scope.Bridge.IsConnected);
         Assert.Equal(
-            new[] { "order_cancel", "order_get", "order_search", "order_summary" },
+            new[]
+            {
+                "order_cancel", "order_change_status", "order_create", "order_delete",
+                "order_get", "order_search", "order_summary", "order_update",
+            },
             scope.Bridge.Tools.Select(static tool => tool.Name).OrderBy(static name => name, StringComparer.Ordinal).ToArray());
         Assert.All(scope.Bridge.Tools, tool => Assert.False(string.IsNullOrWhiteSpace(tool.Description)));
     }
@@ -87,6 +91,51 @@ public sealed class McpRoundTripTests
         Assert.True(trace.Success);
         Assert.Contains("\"total\":5", trace.ResultPreview, StringComparison.Ordinal);
         Assert.False(string.IsNullOrWhiteSpace(reply.Text));
+    }
+
+    [Fact]
+    public async Task CrudTools_MutateRepositoryThroughMcpProtocol()
+    {
+        await using DemoHostScope scope = await DemoHostScope.StartAsync();
+        var repository = scope.Host.Services.GetRequiredService<IOrderRepository>();
+        int initialCount = repository.GetAll().Count;
+
+        CallToolResult created = await scope.Bridge.Client.CallToolAsync(
+            "order_create",
+            new Dictionary<string, object?>
+            {
+                ["customerName"] = "MCP 测试客户",
+                ["amount"] = 66m,
+                ["remark"] = "来自集成测试",
+            });
+        Assert.Contains("\"success\":true", GetText(created), StringComparison.Ordinal);
+
+        Order newOrder = Assert.Single(repository.GetAll(), order => order.CustomerName == "MCP 测试客户");
+
+        CallToolResult updated = await scope.Bridge.Client.CallToolAsync(
+            "order_update",
+            new Dictionary<string, object?> { ["orderId"] = newOrder.Id, ["amount"] = 88m });
+        Assert.Contains("\"success\":true", GetText(updated), StringComparison.Ordinal);
+        Assert.Equal(88m, repository.Find(newOrder.Id)!.Amount);
+
+        CallToolResult statusChanged = await scope.Bridge.Client.CallToolAsync(
+            "order_change_status",
+            new Dictionary<string, object?> { ["orderId"] = newOrder.Id, ["status"] = "Paid" });
+        Assert.Contains("\"success\":true", GetText(statusChanged), StringComparison.Ordinal);
+        Assert.Equal(OrderStatus.Paid, repository.Find(newOrder.Id)!.Status);
+
+        CallToolResult withoutConfirm = await scope.Bridge.Client.CallToolAsync(
+            "order_delete",
+            new Dictionary<string, object?> { ["orderId"] = newOrder.Id, ["confirm"] = false });
+        Assert.Contains("\"success\":false", GetText(withoutConfirm), StringComparison.Ordinal);
+        Assert.NotNull(repository.Find(newOrder.Id));
+
+        CallToolResult deleted = await scope.Bridge.Client.CallToolAsync(
+            "order_delete",
+            new Dictionary<string, object?> { ["orderId"] = newOrder.Id, ["confirm"] = true });
+        Assert.Contains("\"success\":true", GetText(deleted), StringComparison.Ordinal);
+        Assert.Null(repository.Find(newOrder.Id));
+        Assert.Equal(initialCount, repository.GetAll().Count);
     }
 
     [Fact]
