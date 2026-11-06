@@ -2,12 +2,16 @@
 
   <PropertyGroup>
     <RootNamespace>Demo.Contract</RootNamespace>
-    <Description>面向 AI 的契约层：只放接口与语义标注，不含任何实现。源生成器据此产出 MCP 基础设施。</Description>
+    <Description>纯业务契约层：只有接口与领域类型，不含任何实现，也不依赖 AI/MCP 的任何东西。</Description>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Demo.Model\Demo.Model.csproj" />
-    <ProjectReference Include="..\AI.Extension.Abstractions\AI.Extension.Abstractions.csproj" />
   </ItemGroup>
+
+  <!--
+    刻意不引用 AI.Extension.Abstractions：
+    契约层对 AI 完全无感知，暴露成工具/工具名/描述由 MCP 层主动声明与实现（依赖方向 MCP -> Contract）。
+  -->
 
 </Project>

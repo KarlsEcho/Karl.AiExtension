@@ -12,10 +12,9 @@ internal sealed record MethodSpec(
 internal sealed record ParamSpec(
     string TypeName,
     string Name,
-    string? DefaultValueExpression,
-    bool Omit);
+    string? DefaultValueExpression);
 
-/// <summary>一个 AI 契约接口的生成模型。</summary>
+/// <summary>一个被 MCP 层绑定的契约接口的生成模型。</summary>
 internal sealed record ContractSpec(
     string InterfaceFullName,
     string ContractFullName,
@@ -25,6 +24,11 @@ internal sealed record ContractSpec(
     string Lifetime,
     bool GenerateRegistration,
     EquatableArray<MethodSpec> Methods);
+
+/// <summary>单个绑定声明（<c>[AiContractBinding]</c>）的收集结果。</summary>
+internal sealed record BindingResult(
+    ContractSpec? Spec,
+    EquatableArray<DiagnosticInfo> Diagnostics);
 
 /// <summary>本次编译中收集到的全部契约与诊断。</summary>
 internal sealed record ContractCollection(

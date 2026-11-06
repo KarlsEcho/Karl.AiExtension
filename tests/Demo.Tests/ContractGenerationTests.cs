@@ -12,6 +12,20 @@ namespace Demo.Tests;
 public sealed class ContractGenerationTests
 {
     [Fact]
+    public void ContractAssembly_HasNoAiDependency()
+    {
+        // 架构约束：依赖方向只能是 MCP 层 -> 契约层；契约层不得反向依赖任何 AI/MCP 程序集
+        string[] references = typeof(IOrderService).Assembly
+            .GetReferencedAssemblies()
+            .Select(static name => name.Name ?? string.Empty)
+            .ToArray();
+
+        Assert.DoesNotContain("AI.Extension.Abstractions", references);
+        Assert.DoesNotContain(references, name => name.StartsWith("ModelContextProtocol", StringComparison.Ordinal));
+        Assert.DoesNotContain("Microsoft.Extensions.AI", references);
+    }
+
+    [Fact]
     public void Describe_ReturnsOrderServiceContractWithFourMethods()
     {
         IReadOnlyList<AiContractDescriptor> descriptors = AiContractBridgeRegistration.Describe();

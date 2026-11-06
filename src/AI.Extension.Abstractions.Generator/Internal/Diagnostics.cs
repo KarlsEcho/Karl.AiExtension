@@ -26,32 +26,24 @@ internal static class Diagnostics
 {
     public const string Category = "AI.Extension.Generator";
 
-    public static readonly DiagnosticDescriptor GenericMethodSkipped = new(
+    public static readonly DiagnosticDescriptor UnsupportedContractMethod = new(
         id: "AIEX001",
-        title: "契约方法无法桥接：含泛型参数或 ref/out/in 参数",
+        title: "契约方法无法桥接：含泛型参数、ref/out/in 参数或为静态成员",
         messageFormat: "{0}",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
-    public static readonly DiagnosticDescriptor ContractNotAccessible = new(
+    public static readonly DiagnosticDescriptor BindingTargetNotInterface = new(
         id: "AIEX002",
-        title: "契约接口对生成程序集不可见",
-        messageFormat: "{0}",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
-
-    public static readonly DiagnosticDescriptor AttributeOnNonInterface = new(
-        id: "AIEX003",
-        title: "[AiContract] 只能标注在 interface 上",
+        title: "[AiContractBinding] 的 typeof(...) 必须解析为接口",
         messageFormat: "{0}",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
     public static readonly DiagnosticDescriptor ContractWithoutMethods = new(
-        id: "AIEX004",
+        id: "AIEX003",
         title: "契约没有可桥接的方法",
         messageFormat: "{0}",
         category: Category,
@@ -59,20 +51,37 @@ internal static class Diagnostics
         isEnabledByDefault: true);
 
     public static readonly DiagnosticDescriptor NonMethodMemberIgnored = new(
-        id: "AIEX005",
+        id: "AIEX004",
         title: "契约成员被忽略：只桥接普通实例方法",
         messageFormat: "{0}",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Info,
         isEnabledByDefault: true);
 
+    public static readonly DiagnosticDescriptor UnknownMethodMetadata = new(
+        id: "AIEX005",
+        title: "[AiMethod] 指向了契约中不存在的方法",
+        messageFormat: "{0}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor DuplicateBridge = new(
+        id: "AIEX006",
+        title: "重复的桥接声明（同名桥接只生成一次）",
+        messageFormat: "{0}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
     private static readonly Dictionary<string, DiagnosticDescriptor> ById = new(StringComparer.Ordinal)
     {
-        [GenericMethodSkipped.Id] = GenericMethodSkipped,
-        [ContractNotAccessible.Id] = ContractNotAccessible,
-        [AttributeOnNonInterface.Id] = AttributeOnNonInterface,
+        [UnsupportedContractMethod.Id] = UnsupportedContractMethod,
+        [BindingTargetNotInterface.Id] = BindingTargetNotInterface,
         [ContractWithoutMethods.Id] = ContractWithoutMethods,
         [NonMethodMemberIgnored.Id] = NonMethodMemberIgnored,
+        [UnknownMethodMetadata.Id] = UnknownMethodMetadata,
+        [DuplicateBridge.Id] = DuplicateBridge,
     };
 
     public static void Report(SourceProductionContext context, DiagnosticInfo diagnostic)

@@ -1,27 +1,31 @@
 namespace AI.Extension;
 
 /// <summary>
-/// 将一个接口标记为「AI 契约」。
+/// 在 <b>MCP 层</b>声明「把某个业务契约桥接进来」。
 /// <para>
-/// 源生成器会扫描所有标记了 <see cref="AiContractAttribute"/> 的接口，
-/// 生成：① 强类型转发桥接类（基础设施）；② DI 注册扩展；③ 契约目录清单。
-/// 开发者随后在 MCP 层手写轻量语义封装（打上微软 MCP SDK 的 [McpServerTool]），
-/// 在封装方法体内调用生成的桥接方法即可。
+/// 依赖方向是刻意的：<c>MCP 层 ──► 契约层</c>，契约层对 AI 一无所知（不引用本包、不打任何 AI 特性）。
+/// 桥接基础设施由源生成器按这个声明产出，落在声明所在的程序集（通常是 Demo.MCP）。
 /// </para>
 /// </summary>
-[AttributeUsage(AttributeTargets.Interface, AllowMultiple = false, Inherited = false)]
-public sealed class AiContractAttribute : Attribute
+/// <example>
+/// <code>
+/// [AiContractBinding(typeof(Demo.Contract.IOrderService))]
+/// [AiMethod(nameof(Demo.Contract.IOrderService.SearchAsync), ToolName = "order_search", Description = "检索订单")]
+/// internal sealed class OrderServiceBinding;
+/// </code>
+/// </example>
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+public sealed class AiContractBindingAttribute : Attribute
 {
-    /// <summary>使用接口名（去掉前导 I）作为契约名。</summary>
-    public AiContractAttribute()
-    {
-    }
+    /// <summary>声明要桥接的契约接口。</summary>
+    /// <param name="contractType">契约接口类型（必须是 interface）。</param>
+    public AiContractBindingAttribute(Type contractType) => ContractType = contractType;
 
-    /// <summary>显式指定契约名。</summary>
-    public AiContractAttribute(string name) => Name = name;
+    /// <summary>被桥接的契约接口类型。</summary>
+    public Type ContractType { get; }
 
     /// <summary>
-    /// 契约名。用于生成的桥接类名（<c>{Name}Bridge</c>）、工具名建议前缀与契约目录。
+    /// 桥接名。用于生成桥接类名（<c>{Name}Bridge</c>）与契约清单。
     /// 为空时取接口名去掉前导 <c>I</c>，例如 <c>IOrderService</c> → <c>OrderService</c>。
     /// </summary>
     public string? Name { get; set; }
@@ -31,6 +35,32 @@ public sealed class AiContractAttribute : Attribute
 
     /// <summary>是否在生成的 <c>AddAiContractBridges()</c> 中注册该桥接，默认 true。</summary>
     public bool GenerateRegistration { get; set; } = true;
+}
+
+/// <summary>
+/// 可选：为某个契约方法补充「契约 → 工具」的追踪元数据。
+/// <para>
+/// 只影响契约清单（诊断面板、测试断言、文档生成），<b>不影响模型</b>——
+/// 真正给大模型看的工具名与描述仍然由 MCP 层手写封装上的
+/// <c>[McpServerTool(Name = ...)]</c> / <c>[Description]</c> 决定。
+/// 这里登记 ToolName 的价值是：测试可以断言「契约映射的工具名」与「MCP 实际暴露的工具名」没有漂移。
+/// </para>
+/// </summary>
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
+public sealed class AiMethodAttribute : Attribute
+{
+    /// <summary>声明契约方法上的语义。</summary>
+    /// <param name="methodName">契约方法名，建议写 <c>nameof(契约接口.方法)</c> 以获得编译期校验。</param>
+    public AiMethodAttribute(string methodName) => MethodName = methodName;
+
+    /// <summary>契约方法名。</summary>
+    public string MethodName { get; }
+
+    /// <summary>建议的 MCP 工具名（用于对齐校验，不直接生效）。</summary>
+    public string? ToolName { get; set; }
+
+    /// <summary>给 AI 看的语义描述（用于契约清单，不直接生效）。</summary>
+    public string? Description { get; set; }
 }
 
 /// <summary>桥接类的 DI 生命周期。</summary>
@@ -44,35 +74,4 @@ public enum AiBridgeLifetime
 
     /// <summary>单例。注意：绑定到单例契约实现时才可使用。</summary>
     Singleton,
-}
-
-/// <summary>
-/// 为一个契约方法补充 AI 语义。可选：即使不打这个特性，方法也会被生成桥接，
-/// 只是工具名建议与描述为空。
-/// </summary>
-[AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
-public sealed class AiToolAttribute : Attribute
-{
-    /// <summary>使用方法名自动推断描述。</summary>
-    public AiToolAttribute()
-    {
-    }
-
-    /// <summary>提供给 AI 看的语义描述。</summary>
-    public AiToolAttribute(string description) => Description = description;
-
-    /// <summary>给 AI 看的语义描述（会进入工具名建议与契约清单）。</summary>
-    public string? Description { get; set; }
-
-    /// <summary>
-    /// 建议的 MCP 工具名。最终工具名由开发者手写的封装方法上的 <c>[McpServerTool(Name = ...)]</c> 决定，
-    /// 这里只是让「契约 → 工具」的对应关系可被追踪（IDE 提示、契约清单、测试断言）。
-    /// </summary>
-    public string? Name { get; set; }
-}
-
-/// <summary>生成桥接时忽略该方法或参数。</summary>
-[AttributeUsage(AttributeTargets.Method | AttributeTargets.Parameter, AllowMultiple = false, Inherited = false)]
-public sealed class AiIgnoreAttribute : Attribute
-{
 }

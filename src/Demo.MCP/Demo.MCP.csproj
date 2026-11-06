@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <RootNamespace>Demo.MCP</RootNamespace>
-    <Description>Demo 的 MCP 层：存放源生成器产出的桥接基础设施 + 开发者手写的轻量语义封装（[McpServerTool]）。</Description>
+    <Description>Demo 的 MCP 层：主动依赖契约层，声明 [AiContractBinding]，承载生成器产出的桥接基础设施与手写的 [McpServerTool] 语义封装。</Description>
   </PropertyGroup>
 
   <ItemGroup>
@@ -11,8 +11,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- 契约仅为编译期引用（桥接方法需要强类型），不向下游传递 -->
-    <ProjectReference Include="..\Demo.Contract\Demo.Contract.csproj" PrivateAssets="all" />
+    <!-- 依赖方向：MCP 层 -> 契约层（MCP 主动依赖契约，契约对 AI 无感知） -->
+    <ProjectReference Include="..\Demo.Contract\Demo.Contract.csproj" />
     <ProjectReference Include="..\AI.Extension.Abstractions\AI.Extension.Abstractions.csproj" />
   </ItemGroup>
 

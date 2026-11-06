@@ -18,8 +18,9 @@
                                               ├──► 业务逻辑（同一套）
 AI 操作：    自然语言 ──► 大模型 ──► MCP 工具 ──┘
 
-契约：       Demo.Contract（只放接口 + 语义标注，零实现）
-基础设施：   AI.Extension.Abstractions.Generator（编译期把契约变成强类型桥接 + DI 注册）
+契约：       Demo.Contract（纯业务接口，零实现、零 AI 依赖）
+绑定声明：   Demo.MCP 的 [AiContractBinding]（MCP 层主动声明「桥接哪个契约、映射成哪些工具」）
+基础设施：   AI.Extension.Abstractions.Generator（按声明在 MCP 层产出强类型桥接 + DI 注册）
 协议：       微软 MCP C# SDK（[McpServerTool] / [Description] / JSON Schema）
 语义隔离：   Demo.MCP（开发者手写的轻量封装：改名、扁平入参、校验、异常兜底、权限拦截）
 上下文：     UI 活动环形日志，AI 被唤醒时读取（不主动推送）
@@ -41,12 +42,12 @@ AI 操作：    自然语言 ──► 大模型 ──► MCP 工具 ──┘
 
 ```
 src/
-  AI.Extension.Abstractions/            契约标注特性、桥接接口、UI 抽象（IUiActivityTracker / IUiDispatcher）
-  AI.Extension.Abstractions.Generator/  Roslyn 增量源生成器（扫描引用程序集里的 [AiContract]）
+  AI.Extension.Abstractions/            绑定声明特性（[AiContractBinding] / [AiMethod]）、桥接接口、UI 抽象
+  AI.Extension.Abstractions.Generator/  Roslyn 增量源生成器（按 MCP 层的绑定声明产出桥接）
   AI.Extension.Core/                    会话核心：IChatClient 工具循环、进程内 MCP 宿主、UI 日志、MVVM 基类
   AI.Extension.WPF/                     WPF 外壳：聊天面板、工具/契约诊断面板、WpfUiDispatcher
   AI.Extension.Blazor/                  Blazor 外壳（Razor 组件，与 WPF 共享 ChatSession）
-  Demo.Contract/                        面向 AI 的契约（IOrderService）
+  Demo.Contract/                        纯业务契约（IOrderService），零实现、零 AI 依赖
   Demo.Model/                           领域模型 + 内存仓储
   Demo.ViewModel/                       OrdersViewModel：实现契约，UI 与 AI 共用的业务入口
   Demo.MCP/                             手写语义封装 OrderTools（[McpServerToolType]）+ 生成器产出的桥接
@@ -63,17 +64,17 @@ docs/
   BLAZOR.md                              Blazor 分支说明（由 Blazor 分支实现者维护）
 ```
 
-依赖方向（箭头表示「引用」）：
+依赖方向（箭头表示「引用」；关键约束：**契约层不引用任何 AI/MCP 包**）：
 
 ```
 Demo.App ──► Demo.Core ──► AI.Extension.WPF ──► AI.Extension.Core ──► AI.Extension.Abstractions
-   │             │                                     ▲                     ▲
-   │             ├──► Demo.MCP ──► Demo.Contract ──────┘                     │
-   │             ├──► Demo.ViewModel ──► Demo.Contract                        │
-   │             └──► Demo.Model                                              │
-   └──► Demo.View ──► Demo.ViewModel / AI.Extension.WPF                      │
-                                                                             │
-Demo.MCP 编译期还引用 AI.Extension.Abstractions.Generator（Analyzer）─────────┘
+   │             │                                     ▲
+   │             ├──► Demo.MCP ──► Demo.Contract ──────┼── (MCP 主动依赖契约，反向不存在)
+   │             ├──► Demo.ViewModel ──► Demo.Contract │
+   │             └──► Demo.Model                       │
+   └──► Demo.View ──► Demo.ViewModel / AI.Extension.WPF
+
+Demo.MCP 引用 AI.Extension.Abstractions（编写绑定声明）与 AI.Extension.Abstractions.Generator（Analyzer）
 ```
 
 ---
@@ -149,11 +150,14 @@ $env:KARL_AI_MODEL    = "deepseek-chat"
 
 以「客户管理」为例：
 
-1. **写契约**：在 `Demo.Contract` 加接口，方法上标 `[AiTool("给 AI 看的描述", Name = "customer_search")]`；
+1. **写契约（纯业务，零 AI 依赖）**：在 `Demo.Contract` 加接口，只写业务方法，**不打任何 AI 特性**；
 2. **实现契约**：在 `Demo.ViewModel` 里实现接口（这就是 UI 与 AI 共用的业务入口）；
 3. **注册实现**：在 `Demo.Core` 的 `AddDemoDomain()` 里把接口映射到实现；
-4. **生成桥接**：编译即可——生成器自动产出 `CustomerServiceBridge` 并把它加进 `AddAiContractBridges()`；
-5. **写语义封装**：在 `Demo.MCP` 加一个 `[McpServerToolType]` 类，方法上标 `[McpServerTool(Name = "customer_search")]` + `[Description]`，方法体内调用 `CustomerServiceBridge`。
+4. **MCP 层声明绑定**：在 `Demo.MCP` 加一个声明类，`[AiContractBinding(typeof(ICustomerService))]`（可选 `[AiMethod(nameof(...), ToolName = ...)]` 登记工具对齐信息）；
+5. **生成桥接**：编译即可——生成器在 `Demo.MCP` 里产出 `CustomerServiceBridge` 并加进 `AddAiContractBridges()`；
+6. **写语义封装**：在 `Demo.MCP` 加 `[McpServerToolType]` 类，方法上标 `[McpServerTool(Name = "customer_search")]` + `[Description]`，方法体内调用 `CustomerServiceBridge`。
+
+依赖方向始终是 **MCP 层 ──► 契约层**：契约层不知道 AI 的存在，也不需要为了 AI 改一行代码。
 
 不需要手写任何 MCP 协议代码，也不需要手写 JSON Schema。
 
@@ -164,9 +168,10 @@ $env:KARL_AI_MODEL    = "deepseek-chat"
 - **流式输出**：会话目前是「一次完整回复」，`ChatSession` 预留了工具轨迹上报，但未做逐 Token 推送；`IChatClient` 支持流式，接入即可。
 - **人工确认（Human-in-the-loop）**：敏感工具目前只做参数校验与日志，未做「AI 请求 → 原生弹窗确认」的拦截；`ChatSession` 的工具循环是显式写的，加这一步只需在调用前插入一次用户确认。
 - **权限模型**：没有 RBAC，只有工具级校验。
-- **生成器增量性能**：当前用 `CompilationProvider` 全量扫描（为了能看到其他程序集里的契约），对契约规模大的仓库可优化为「按程序集分组 + 缓存」。
+- **契约层零 AI 依赖**：`Demo.Contract` 不引用 `AI.Extension.Abstractions`（见 csproj），「暴露成哪些工具、工具名、描述」全部在 `Demo.MCP` 声明与实现。
+- **生成器增量性能**：绑定声明与 MCP 在同一程序集，已用语法级 `ForAttributeWithMetadataName` 增量 Provider；契约方法签名从元数据读取，契约规模很大时可再加一层按接口缓存的包装。
 - **Blazor**：已完成 Interactive Server 宿主（`Demo.BlazorHost`）；WASM / 多 circuit 多会话隔离等限制见 `docs/BLAZOR.md`。
-- **`Demo.MCP` 对 `Demo.Contract` 的引用是编译期引用**：强类型桥接必须能看见契约类型。若要求 `Demo.MCP` 完全不引用契约程序集，可把桥接生成到独立的 `Demo.Contract.Generated` 程序集，MCP 只依赖该程序集 + Abstractions。
+- **`Demo.MCP` 对 `Demo.Contract` 的引用是设计意图**：依赖方向 `MCP 层 ──► 契约层`，MCP 主动依赖契约；契约层不需要为 AI 改一行代码。
 
 ---
 

@@ -224,9 +224,6 @@ public sealed class OrdersViewModel : ObservableObject, IOrderService
         return Task.FromResult(summary);
     }
 
-    /// <inheritdoc />
-    public void RefreshUi() => OnPropertyChanged(nameof(Orders));
-
     private async Task CancelSelectedAsync()
     {
         if (SelectedOrder is null)
