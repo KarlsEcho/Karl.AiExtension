@@ -73,6 +73,9 @@ public sealed class ChatSession
     /// <summary>会话标题变化（AI 自动生成或用户重命名）。</summary>
     public event Action<string>? TitleChanged;
 
+    /// <summary>流式文本增量（仅 <see cref="SendStreamingAsync"/> 触发）。</summary>
+    public event Action<string>? TextDelta;
+
     /// <summary>绑定的会话 Id（未绑定时为 null）。</summary>
     public string? ConversationId => _conversation?.Id;
 
@@ -122,6 +125,21 @@ public sealed class ChatSession
         try
         {
             return await SendCoreAsync(userInput.Trim(), cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _turnGate.Release();
+        }
+    }
+
+    /// <summary>发送一条用户消息（流式）：边生成边通过 <see cref="TextDelta"/> 推送增量。</summary>
+    public async Task<AiChatReply> SendStreamingAsync(string userInput, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(userInput);
+        await _turnGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await SendStreamingCoreAsync(userInput.Trim(), cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -187,11 +205,158 @@ public sealed class ChatSession
 
         if (string.IsNullOrWhiteSpace(finalText))
         {
-            finalText = traces.Count == 0
-                ? "模型没有返回内容，请检查模型配置。"
-                : $"已完成 {traces.Count} 次工具调用，但模型未给出最终答复（可能达到轮次上限）。";
+            finalText = BuildFallbackText(traces);
         }
 
+        await SaveTurnAsync(userInput, finalText, traces, cancellationToken).ConfigureAwait(false);
+        return new AiChatReply(finalText, traces);
+    }
+
+    private async Task<AiChatReply> SendStreamingCoreAsync(string userInput, CancellationToken cancellationToken)
+    {
+        var messages = new List<ChatMessage>
+        {
+            new(ChatRole.System, BuildSystemPrompt()),
+        };
+
+        lock (_history)
+        {
+            messages.AddRange(_history);
+        }
+
+        messages.Add(new ChatMessage(ChatRole.User, userInput));
+
+        var traces = new List<AiToolCallTrace>();
+        string finalText = string.Empty;
+
+        for (int iteration = 0; iteration < _options.MaxToolIterations; iteration++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var chatOptions = new ChatOptions
+            {
+                Tools = _bridge.Tools.Cast<AITool>().ToList(),
+                ToolMode = ChatToolMode.Auto,
+            };
+
+            List<FunctionCallContent> functionCalls;
+            string iterationText;
+            try
+            {
+                (iterationText, functionCalls) = await StreamIterationAsync(messages, chatOptions, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (NotSupportedException)
+            {
+                // 兜底客户端/供应商不支持流式：退回一次性返回
+                ChatResponse response = await _chatClientAccessor.Current
+                    .GetResponseAsync(messages, chatOptions, cancellationToken)
+                    .ConfigureAwait(false);
+
+                messages.AddRange(response.Messages);
+                functionCalls = response.Messages
+                    .SelectMany(static message => message.Contents)
+                    .OfType<FunctionCallContent>()
+                    .ToList();
+                iterationText = response.Text ?? string.Empty;
+            }
+
+            if (functionCalls.Count == 0)
+            {
+                finalText = iterationText;
+                break;
+            }
+
+            foreach (FunctionCallContent call in functionCalls)
+            {
+                AiToolCallTrace trace = await InvokeToolAsync(call, cancellationToken).ConfigureAwait(false);
+                traces.Add(trace);
+                ToolCallCompleted?.Invoke(trace);
+
+                messages.Add(new ChatMessage(
+                    ChatRole.Tool,
+                    new List<AIContent> { new FunctionResultContent(call.CallId, BuildToolPayload(trace)) }));
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(finalText))
+        {
+            finalText = BuildFallbackText(traces);
+        }
+
+        await SaveTurnAsync(userInput, finalText, traces, cancellationToken).ConfigureAwait(false);
+        return new AiChatReply(finalText, traces);
+    }
+
+    /// <summary>读取一轮流式结果：累积文本、去重工具调用，并把文本增量通过 <see cref="TextDelta"/> 推出。</summary>
+    private async Task<(string Text, List<FunctionCallContent> Calls)> StreamIterationAsync(
+        List<ChatMessage> messages,
+        ChatOptions chatOptions,
+        CancellationToken cancellationToken)
+    {
+        var contents = new List<AIContent>();
+        var textBuilder = new StringBuilder();
+        var functionCalls = new Dictionary<string, FunctionCallContent>(StringComparer.Ordinal);
+        bool receivedAnyUpdate = false;
+
+        await foreach (ChatResponseUpdate update in _chatClientAccessor.Current
+            .GetStreamingResponseAsync(messages, chatOptions, cancellationToken)
+            .ConfigureAwait(false))
+        {
+            receivedAnyUpdate = true;
+
+            foreach (AIContent content in update.Contents)
+            {
+                switch (content)
+                {
+                    case TextContent text:
+                        string delta = text.Text ?? string.Empty;
+                        if (delta.Length > 0)
+                        {
+                            textBuilder.Append(delta);
+                            TextDelta?.Invoke(delta);
+                        }
+
+                        contents.Add(content);
+                        break;
+
+                    case FunctionCallContent call:
+                        functionCalls[call.CallId ?? call.Name] = call;
+                        contents.Add(content);
+                        break;
+
+                    default:
+                        contents.Add(content);
+                        break;
+                }
+            }
+        }
+
+        if (!receivedAnyUpdate)
+        {
+            throw new NotSupportedException("当前聊天客户端不支持流式返回。");
+        }
+
+        if (contents.Count > 0)
+        {
+            messages.Add(new ChatMessage(ChatRole.Assistant, contents));
+        }
+
+        return (textBuilder.ToString(), functionCalls.Values.ToList());
+    }
+
+    private static string BuildFallbackText(IReadOnlyList<AiToolCallTrace> traces)
+        => traces.Count == 0
+            ? "模型没有返回内容，请检查模型配置。"
+            : $"已完成 {traces.Count} 次工具调用，但模型未给出最终答复（可能达到轮次上限）。";
+
+    /// <summary>把本轮对话写入历史、会话文件（含自动标题）与活动日志。</summary>
+    private async Task SaveTurnAsync(
+        string userInput,
+        string finalText,
+        IReadOnlyList<AiToolCallTrace> traces,
+        CancellationToken cancellationToken)
+    {
         lock (_history)
         {
             _history.Add(new ChatMessage(ChatRole.User, userInput));
@@ -213,6 +378,7 @@ public sealed class ChatSession
                     trace.ResultPreview,
                     (long)trace.Duration.TotalMilliseconds)).ToArray()));
             _conversation.UpdatedAt = now;
+
             string? generatedTitle = null;
             if (string.IsNullOrWhiteSpace(_conversation.Title) || _conversation.Title == "新对话")
             {
@@ -235,8 +401,6 @@ public sealed class ChatSession
             UiActivityCategory.AgentAction,
             $"AI 对话完成：调用 {traces.Count} 次工具",
             traces.Count == 0 ? null : string.Join(" → ", traces.Select(static trace => trace.ToolName)));
-
-        return new AiChatReply(finalText, traces);
     }
 
     private async Task<AiToolCallTrace> InvokeToolAsync(FunctionCallContent call, CancellationToken cancellationToken)

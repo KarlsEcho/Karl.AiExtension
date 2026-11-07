@@ -52,6 +52,7 @@
                              VerticalScrollBarVisibility="Disabled"
                              HorizontalScrollBarVisibility="Disabled"
                              Cursor="IBeam"
+                             TextChanged="MessageTextBox_TextChanged"
                              ToolTip="可选中复制（Ctrl+C）" />
                 </StackPanel>
             </Border>
@@ -178,16 +179,28 @@
                          FontSize="13"
                          BorderBrush="#CBD5E1" />
 
-                <Button Grid.Column="1"
-                        Content="发送"
-                        Command="{Binding SendCommand}"
-                        Margin="8,0,0,0"
-                        Padding="16,8"
-                        Background="#2563EB"
-                        Foreground="White"
-                        BorderThickness="0"
-                        FontWeight="SemiBold"
-                        Cursor="Hand" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,0">
+                    <Button Content="停止"
+                            Command="{Binding CancelSendCommand}"
+                            Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}"
+                            Padding="14,8"
+                            Background="#FEE2E2"
+                            Foreground="#991B1B"
+                            BorderThickness="0"
+                            FontWeight="SemiBold"
+                            Cursor="Hand"
+                            ToolTip="停止本次生成（保留已生成内容）" />
+
+                    <Button Content="发送"
+                            Command="{Binding SendCommand}"
+                            Margin="6,0,0,0"
+                            Padding="16,8"
+                            Background="#2563EB"
+                            Foreground="White"
+                            BorderThickness="0"
+                            FontWeight="SemiBold"
+                            Cursor="Hand" />
+                </StackPanel>
             </Grid>
         </Border>
     </Grid>

@@ -16,6 +16,7 @@ public sealed class ChatPanelViewModel : ObservableObject, IDisposable
     private string _statusText = "就绪：可以问我「帮我统计一下订单情况」";
     private bool _isEditingTitle;
     private string _editingTitle = string.Empty;
+    private CancellationTokenSource? _sendCts;
 
     /// <summary>构造视图模型。</summary>
     public ChatPanelViewModel(
@@ -33,6 +34,7 @@ public sealed class ChatPanelViewModel : ObservableObject, IDisposable
             _ => SendAsync(),
             _ => !IsBusy && !string.IsNullOrWhiteSpace(InputText));
         ClearCommand = new RelayCommand(_ => Clear());
+        CancelSendCommand = new RelayCommand(_ => _sendCts?.Cancel(), _ => IsBusy);
         BeginEditTitleCommand = new RelayCommand(_ => BeginEditTitle());
         CommitTitleCommand = new AsyncRelayCommand(_ => CommitTitleAsync());
         CancelEditTitleCommand = new RelayCommand(_ => IsEditingTitle = false);
@@ -115,6 +117,7 @@ public sealed class ChatPanelViewModel : ObservableObject, IDisposable
             if (SetProperty(ref _isBusy, value))
             {
                 SendCommand.RaiseCanExecuteChanged();
+                CancelSendCommand?.RaiseCanExecuteChanged();
             }
         }
     }
@@ -129,6 +132,9 @@ public sealed class ChatPanelViewModel : ObservableObject, IDisposable
     /// <summary>发送命令。</summary>
     public AsyncRelayCommand SendCommand { get; }
 
+    /// <summary>停止生成命令。</summary>
+    public RelayCommand CancelSendCommand { get; }
+
     /// <summary>新对话命令。</summary>
     public RelayCommand ClearCommand { get; }
 
@@ -142,27 +148,66 @@ public sealed class ChatPanelViewModel : ObservableObject, IDisposable
 
         InputText = string.Empty;
         Messages.Add(new ChatMessageViewModel(isUser: true, text));
+        var assistantMessage = new ChatMessageViewModel(isUser: false, string.Empty);
+        Messages.Add(assistantMessage);
         ToolCalls.Clear();
         IsBusy = true;
-        StatusText = "AI 正在思考…";
+        StatusText = "AI 正在生成…";
+        _sendCts = new CancellationTokenSource();
 
+        void OnTextDelta(string delta) => _ = AppendDeltaAsync(assistantMessage, delta);
+
+        _session.TextDelta += OnTextDelta;
         try
         {
-            AiChatReply reply = await _session.SendAsync(text);
-            Messages.Add(new ChatMessageViewModel(isUser: false, reply.Text));
+            AiChatReply reply = await _session.SendStreamingAsync(text, _sendCts.Token).ConfigureAwait(true);
+
+            // 流式累计与最终文本不一致时（例如中途回退到非流式），以最终结果为准
+            if (!string.IsNullOrEmpty(reply.Text) && !string.Equals(assistantMessage.Text, reply.Text, StringComparison.Ordinal))
+            {
+                assistantMessage.SetText(reply.Text);
+            }
+
             StatusText = reply.ToolCalls.Count == 0
                 ? "完成（本轮未调用工具）"
                 : $"完成（调用 {reply.ToolCalls.Count} 次工具）";
         }
+        catch (OperationCanceledException)
+        {
+            StatusText = "已停止生成";
+            if (string.IsNullOrEmpty(assistantMessage.Text))
+            {
+                assistantMessage.SetText("（已停止生成）");
+            }
+        }
         catch (Exception exception)
         {
-            Messages.Add(new ChatMessageViewModel(isUser: false, $"请求失败：{exception.Message}"));
+            assistantMessage.SetText($"请求失败：{exception.Message}");
             StatusText = "请求失败";
         }
         finally
         {
+            _session.TextDelta -= OnTextDelta;
+            _sendCts?.Dispose();
+            _sendCts = null;
             IsBusy = false;
             OnPropertyChanged(nameof(Title));
+        }
+    }
+
+    private async Task AppendDeltaAsync(ChatMessageViewModel message, string delta)
+    {
+        try
+        {
+            await _uiDispatcher.InvokeAsync(() =>
+            {
+                message.AppendText(delta);
+                return Task.CompletedTask;
+            }).ConfigureAwait(true);
+        }
+        catch (Exception)
+        {
+            // 窗口关闭时 Dispatcher 可能已不可用，忽略
         }
     }
 

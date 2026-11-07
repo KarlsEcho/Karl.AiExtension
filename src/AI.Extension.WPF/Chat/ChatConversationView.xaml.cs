@@ -40,6 +40,12 @@ public partial class ChatConversationView : UserControl
         MessagesScroll?.ScrollToEnd();
     }
 
+    private void MessageTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        // 流式追加内容时保持滚动到底部
+        MessagesScroll?.ScrollToEnd();
+    }
+
     private void OnCompositionStart(object sender, TextCompositionEventArgs e) => _isImeComposing = true;
 
     private void OnCompositionCommitted(object sender, TextCompositionEventArgs e) => _isImeComposing = false;
