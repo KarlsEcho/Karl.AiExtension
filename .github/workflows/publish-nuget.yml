@@ -70,7 +70,8 @@ jobs:
         id: login
         with:
           # nuget.org 的用户名（profile name），不是邮箱；建议放仓库 Secret：NUGET_USER
-          user: ${{ secrets.NUGET_USER }}
+          # nuget.org 用户名（profile name，不是邮箱）；优先用 Secret，缺省回退到仓库所有者
+          user: ${{ secrets.NUGET_USER || 'karlsecho' }}
 
       - name: Push to nuget.org
         shell: pwsh
@@ -96,3 +97,4 @@ jobs:
           }
 
           Write-Host "完成：已推送 $($packages.Count) 个包"
+
