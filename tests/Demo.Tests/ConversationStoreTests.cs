@@ -26,10 +26,9 @@ public class ConversationStoreTests
             Assert.Equal(conversation.Id, active[0].Id);
             Assert.Equal("测试会话", active[0].Title);
             Assert.Equal("你好", active[0].Messages[0].Text);
-            Assert.True(File.Exists(Path.Combine(
-                directory,
-                JsonConversationStore.UsingFolderName,
-                conversation.Id + ".json")));
+            string? savedFile = FindConversationFile(directory, JsonConversationStore.UsingFolderName, conversation.Id);
+            Assert.NotNull(savedFile);
+            Assert.StartsWith("测试会话_", Path.GetFileName(savedFile));
         }
         finally
         {
@@ -54,14 +53,8 @@ public class ConversationStoreTests
             IReadOnlyList<Conversation> archived = await store.LoadAsync(archived: true);
             Assert.Single(archived);
             Assert.True(archived[0].Archived);
-            Assert.True(File.Exists(Path.Combine(
-                directory,
-                JsonConversationStore.StoredFolderName,
-                conversation.Id + ".json")));
-            Assert.False(File.Exists(Path.Combine(
-                directory,
-                JsonConversationStore.UsingFolderName,
-                conversation.Id + ".json")));
+            Assert.NotNull(FindConversationFile(directory, JsonConversationStore.StoredFolderName, conversation.Id));
+            Assert.Null(FindConversationFile(directory, JsonConversationStore.UsingFolderName, conversation.Id));
 
             await store.SetArchivedAsync(conversation.Id, archived: false);
             Assert.Single(await store.LoadAsync(archived: false));
@@ -179,7 +172,9 @@ public class ConversationStoreTests
 
             Assert.Single(active);
             Assert.Equal("旧会话", active[0].Title);
-            Assert.True(File.Exists(Path.Combine(directory, JsonConversationStore.UsingFolderName, active[0].Id + ".json")));
+            string? migratedFile = FindConversationFile(directory, JsonConversationStore.UsingFolderName, active[0].Id);
+            Assert.NotNull(migratedFile);
+            Assert.StartsWith("旧会话_", Path.GetFileName(migratedFile));
             Assert.False(File.Exists(Path.Combine(directory, JsonConversationStore.LegacyUsingFileName)));
             Assert.True(File.Exists(Path.Combine(directory, JsonConversationStore.LegacyUsingFileName + ".legacy")));
         }
@@ -187,6 +182,49 @@ public class ConversationStoreTests
         {
             TryDeleteDirectory(directory);
         }
+    }
+
+    [Fact]
+    public async Task 重命名会话_文件名跟随标题变化()
+    {
+        string directory = NewTempDirectory();
+        try
+        {
+            var store = new JsonConversationStore(directory);
+            var conversation = new Conversation { Title = "旧标题" };
+            await store.SaveAsync(conversation);
+            Assert.StartsWith("旧标题_", Path.GetFileName(FindConversationFile(directory, JsonConversationStore.UsingFolderName, conversation.Id)!));
+
+            conversation.Title = "新标题";
+            await store.SaveAsync(conversation);
+
+            string? renamedFile = FindConversationFile(directory, JsonConversationStore.UsingFolderName, conversation.Id);
+            Assert.NotNull(renamedFile);
+            Assert.StartsWith("新标题_", Path.GetFileName(renamedFile));
+            Assert.Single(Directory.EnumerateFiles(Path.Combine(directory, JsonConversationStore.UsingFolderName), "*.json"));
+        }
+        finally
+        {
+            TryDeleteDirectory(directory);
+        }
+    }
+
+    private static string? FindConversationFile(string directory, string folder, string conversationId)
+    {
+        string target = Path.Combine(directory, folder);
+        if (!Directory.Exists(target))
+        {
+            return null;
+        }
+
+        return Directory
+            .EnumerateFiles(target, "*.json")
+            .FirstOrDefault(file =>
+            {
+                string name = Path.GetFileNameWithoutExtension(file);
+                return name.Equals(conversationId, StringComparison.OrdinalIgnoreCase)
+                    || name.EndsWith("_" + conversationId, StringComparison.OrdinalIgnoreCase);
+            });
     }
 
     private static string NewTempDirectory()

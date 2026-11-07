@@ -67,6 +67,55 @@ public class ChatTabsViewModelTests
         }
     }
 
+    [Fact]
+    public async Task 打开会话列表_不包含已归档会话()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), "karl-ai-tabs-tests", Guid.NewGuid().ToString("N"));
+        try
+        {
+            var store = new JsonConversationStore(directory);
+
+            var active = new Conversation { Title = "未归档会话" };
+            active.Messages.Add(new ConversationMessage("user", "hi", DateTimeOffset.Now));
+            await store.SaveAsync(active);
+
+            var archived = new Conversation { Title = "已归档会话", Archived = true };
+            archived.Messages.Add(new ConversationMessage("user", "hi", DateTimeOffset.Now));
+            await store.SaveAsync(archived);
+
+            var accessor = new FixedChatClientAccessor();
+            var factory = new ChatSessionFactory(
+                accessor,
+                new McpServerBridge(),
+                new UiActivityTracker(),
+                new AiChatOptions(),
+                store);
+
+            var services = new ServiceCollection();
+            services.AddSingleton<IUiDispatcher>(new ImmediateUiDispatcher());
+            services.AddSingleton<IAiChatClientAccessor>(accessor);
+            services.AddSingleton<IChatSessionFactory>(factory);
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            var tabs = new ChatTabsViewModel(factory, provider);
+            await tabs.InitializeAsync();
+
+            Assert.Single(tabs.Tabs);
+            Assert.Empty(tabs.OpenableConversations);
+
+            tabs.CloseTabCommand.Execute(tabs.Tabs[0]);
+            await WaitUntilAsync(() => tabs.OpenableConversations.Count == 1);
+
+            ConversationChoice choice = Assert.Single(tabs.OpenableConversations);
+            Assert.Equal("未归档会话", choice.Conversation.Title);
+            Assert.DoesNotContain(tabs.OpenableConversations, item => item.Conversation.Title == "已归档会话");
+        }
+        finally
+        {
+            TryDeleteDirectory(directory);
+        }
+    }
+
     private static async Task WaitUntilAsync(Func<bool> condition, int timeoutMilliseconds = 8000)
     {
         DateTimeOffset deadline = DateTimeOffset.Now.AddMilliseconds(timeoutMilliseconds);

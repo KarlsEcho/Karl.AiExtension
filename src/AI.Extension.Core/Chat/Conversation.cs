@@ -200,8 +200,14 @@ public sealed class JsonConversationStore : IConversationStore
         try
         {
             await EnsureLegacyMigratedAsync(cancellationToken).ConfigureAwait(false);
-            TryDeleteFile(GetFilePath(conversationId, archived: false));
-            TryDeleteFile(GetFilePath(conversationId, archived: true));
+            foreach (bool archived in new[] { false, true })
+            {
+                string? filePath = FindConversationFilePath(conversationId, archived);
+                if (filePath is not null)
+                {
+                    TryDeleteFile(filePath);
+                }
+            }
         }
         finally
         {
@@ -239,8 +245,8 @@ public sealed class JsonConversationStore : IConversationStore
     {
         foreach (bool archived in new[] { false, true })
         {
-            string filePath = GetFilePath(conversationId, archived);
-            if (!File.Exists(filePath))
+            string? filePath = FindConversationFilePath(conversationId, archived);
+            if (filePath is null)
             {
                 continue;
             }
@@ -258,8 +264,7 @@ public sealed class JsonConversationStore : IConversationStore
 
     private async Task WriteAsync(Conversation conversation, CancellationToken cancellationToken)
     {
-        string targetPath = GetFilePath(conversation.Id, conversation.Archived);
-        string otherPath = GetFilePath(conversation.Id, !conversation.Archived);
+        string targetPath = Path.Combine(GetDirectory(conversation.Archived), BuildFileName(conversation));
 
         string? directory = Path.GetDirectoryName(targetPath);
         if (!string.IsNullOrEmpty(directory))
@@ -268,7 +273,9 @@ public sealed class JsonConversationStore : IConversationStore
         }
 
         await WriteJsonAsync(targetPath, conversation, cancellationToken).ConfigureAwait(false);
-        TryDeleteFile(otherPath);
+
+        // 标题可能变了：清掉同一会话在 using/、stored/ 里的旧文件名（含历史 {id}.json 格式）
+        DeleteOtherFilesForId(conversation.Id, targetPath);
     }
 
     private static async Task WriteJsonAsync(string filePath, Conversation conversation, CancellationToken cancellationToken)
@@ -322,6 +329,45 @@ public sealed class JsonConversationStore : IConversationStore
             StoredDirectory,
             archived: true,
             cancellationToken).ConfigureAwait(false);
+
+        // 把历史 {id}.json 归一化为 {会话名称}_{id}.json
+        await NormalizeFileNamesAsync(UsingDirectory, archived: false, cancellationToken).ConfigureAwait(false);
+        await NormalizeFileNamesAsync(StoredDirectory, archived: true, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>把不符合 <c>{会话名称}_{Id}.json</c> 命名的会话文件重命名。</summary>
+    private static async Task NormalizeFileNamesAsync(string directory, bool archived, CancellationToken cancellationToken)
+    {
+        if (!Directory.Exists(directory))
+        {
+            return;
+        }
+
+        foreach (string filePath in Directory.EnumerateFiles(directory, "*.json"))
+        {
+            Conversation? conversation = await ReadConversationAsync(filePath, cancellationToken).ConfigureAwait(false);
+            if (conversation is null)
+            {
+                continue;
+            }
+
+            conversation.Archived = archived;
+            string expectedPath = Path.Combine(directory, BuildFileName(conversation));
+            if (string.Equals(filePath, expectedPath, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            try
+            {
+                await WriteJsonAsync(expectedPath, conversation, cancellationToken).ConfigureAwait(false);
+                TryDeleteFile(filePath);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                // 单个文件重命名失败时保留原文件，不影响使用
+            }
+        }
     }
 
     private static async Task MigrateLegacyFileAsync(
@@ -348,7 +394,7 @@ public sealed class JsonConversationStore : IConversationStore
                 foreach (Conversation conversation in conversations)
                 {
                     conversation.Archived = archived;
-                    string targetPath = Path.Combine(targetDirectory, SafeFileId(conversation.Id) + ".json");
+                    string targetPath = Path.Combine(targetDirectory, BuildFileName(conversation));
                     await WriteJsonAsync(targetPath, conversation, cancellationToken).ConfigureAwait(false);
                 }
             }
@@ -362,8 +408,77 @@ public sealed class JsonConversationStore : IConversationStore
         }
     }
 
-    private string GetFilePath(string conversationId, bool archived)
-        => Path.Combine(GetDirectory(archived), SafeFileId(conversationId) + ".json");
+    /// <summary>会话文件名：<c>{会话名称}_{Id}.json</c>（标题里非法字符替换为下划线）。</summary>
+    private static string BuildFileName(Conversation conversation)
+    {
+        string title = string.IsNullOrWhiteSpace(conversation.Title) ? "会话" : conversation.Title.Trim();
+        char[] invalid = Path.GetInvalidFileNameChars();
+        var builder = new System.Text.StringBuilder(title.Length);
+        foreach (char ch in title)
+        {
+            builder.Append(Array.IndexOf(invalid, ch) >= 0 ? '_' : ch);
+        }
+
+        string safeTitle = builder.ToString().Trim().TrimEnd('.', ' ');
+        if (safeTitle.Length == 0)
+        {
+            safeTitle = "会话";
+        }
+
+        if (safeTitle.Length > 60)
+        {
+            safeTitle = safeTitle[..60];
+        }
+
+        return $"{safeTitle}_{SafeFileId(conversation.Id)}.json";
+    }
+
+    /// <summary>按 Id 在指定文件夹里找会话文件（兼容新命名与历史 <c>{id}.json</c>）。</summary>
+    private string? FindConversationFilePath(string conversationId, bool archived)
+    {
+        string directory = GetDirectory(archived);
+        if (!Directory.Exists(directory))
+        {
+            return null;
+        }
+
+        string safeId = SafeFileId(conversationId);
+        foreach (string filePath in Directory.EnumerateFiles(directory, "*.json"))
+        {
+            string name = Path.GetFileNameWithoutExtension(filePath);
+            if (name.Equals(safeId, StringComparison.OrdinalIgnoreCase)
+                || name.EndsWith("_" + safeId, StringComparison.OrdinalIgnoreCase))
+            {
+                return filePath;
+            }
+        }
+
+        return null;
+    }
+
+    private void DeleteOtherFilesForId(string conversationId, string keepPath)
+    {
+        string safeId = SafeFileId(conversationId);
+        foreach (bool archived in new[] { false, true })
+        {
+            string directory = GetDirectory(archived);
+            if (!Directory.Exists(directory))
+            {
+                continue;
+            }
+
+            foreach (string filePath in Directory.EnumerateFiles(directory, "*.json"))
+            {
+                string name = Path.GetFileNameWithoutExtension(filePath);
+                bool matches = name.Equals(safeId, StringComparison.OrdinalIgnoreCase)
+                    || name.EndsWith("_" + safeId, StringComparison.OrdinalIgnoreCase);
+                if (matches && !string.Equals(filePath, keepPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    TryDeleteFile(filePath);
+                }
+            }
+        }
+    }
 
     private static string SafeFileId(string conversationId)
     {

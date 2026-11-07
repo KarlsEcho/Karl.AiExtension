@@ -19,10 +19,8 @@ public sealed class ConversationChoice
     /// <summary>原始会话。</summary>
     public Conversation Conversation { get; }
 
-    /// <summary>显示标题（已归档会加后缀）。</summary>
-    public string DisplayTitle => Conversation.Archived
-        ? $"{Conversation.Title}（已归档）"
-        : Conversation.Title;
+    /// <summary>显示标题。</summary>
+    public string DisplayTitle => Conversation.Title;
 
     /// <summary>最后更新时间显示。</summary>
     public string UpdatedText => Conversation.UpdatedAt.ToString("MM-dd HH:mm");
@@ -185,12 +183,6 @@ public sealed class ChatTabsViewModel : ObservableObject
             }
             else
             {
-                // 已归档会话：选中后自动取消归档并打开
-                if (choice.Conversation.Archived)
-                {
-                    await _sessionFactory.SetArchivedAsync(choice.Conversation.Id, archived: false).ConfigureAwait(true);
-                }
-
                 ChatSession? session = await _sessionFactory.OpenAsync(choice.Conversation.Id).ConfigureAwait(true);
                 if (session is null)
                 {
@@ -321,7 +313,6 @@ public sealed class ChatTabsViewModel : ObservableObject
                 _refreshRequested = false;
 
                 IReadOnlyList<Conversation> active = await _sessionFactory.LoadActiveAsync().ConfigureAwait(true);
-                IReadOnlyList<Conversation> archived = await _sessionFactory.LoadArchivedAsync().ConfigureAwait(true);
 
                 var openIds = Tabs
                     .Select(static tab => tab.Session.ConversationId)
@@ -329,7 +320,6 @@ public sealed class ChatTabsViewModel : ObservableObject
                     .ToHashSet(StringComparer.Ordinal);
 
                 List<Conversation> choices = active
-                    .Concat(archived)
                     .Where(conversation => !openIds.Contains(conversation.Id))
                     .OrderByDescending(static conversation => conversation.UpdatedAt)
                     .ToList();
@@ -357,4 +347,5 @@ public sealed class ChatTabsViewModel : ObservableObject
         StatusText = $"{Tabs.Count} 个标签 · 可打开 {OpenableConversations.Count} 个（自动保存）";
     }
 }
+
 

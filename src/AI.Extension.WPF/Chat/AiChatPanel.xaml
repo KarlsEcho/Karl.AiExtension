@@ -134,7 +134,7 @@
                           IsEditable="False"
                           VerticalContentAlignment="Center"
                           FontSize="11"
-                          ToolTip="重新打开已关闭的会话（已归档会话选中后会自动取消归档）" />
+                          ToolTip="重新打开已关闭的会话（仅未归档；归档的会话在 stored 文件夹）" />
 
                 <TextBlock Text="{Binding StatusText}"
                            Margin="10,0,0,0"
@@ -155,3 +155,4 @@
                     Background="#FFFFFF" />
     </Grid>
 </UserControl>
+
