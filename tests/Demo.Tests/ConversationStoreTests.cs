@@ -26,7 +26,10 @@ public class ConversationStoreTests
             Assert.Equal(conversation.Id, active[0].Id);
             Assert.Equal("测试会话", active[0].Title);
             Assert.Equal("你好", active[0].Messages[0].Text);
-            Assert.True(File.Exists(Path.Combine(directory, JsonConversationStore.UsingFileName)));
+            Assert.True(File.Exists(Path.Combine(
+                directory,
+                JsonConversationStore.UsingFolderName,
+                conversation.Id + ".json")));
         }
         finally
         {
@@ -51,7 +54,14 @@ public class ConversationStoreTests
             IReadOnlyList<Conversation> archived = await store.LoadAsync(archived: true);
             Assert.Single(archived);
             Assert.True(archived[0].Archived);
-            Assert.True(File.Exists(Path.Combine(directory, JsonConversationStore.ArchivedFileName)));
+            Assert.True(File.Exists(Path.Combine(
+                directory,
+                JsonConversationStore.StoredFolderName,
+                conversation.Id + ".json")));
+            Assert.False(File.Exists(Path.Combine(
+                directory,
+                JsonConversationStore.UsingFolderName,
+                conversation.Id + ".json")));
 
             await store.SetArchivedAsync(conversation.Id, archived: false);
             Assert.Single(await store.LoadAsync(archived: false));
@@ -144,6 +154,34 @@ public class ConversationStoreTests
             Assert.NotEqual(first.ConversationId, second.ConversationId);
             Assert.Equal(0, first.HistoryCount);
             Assert.Equal(0, second.HistoryCount);
+        }
+        finally
+        {
+            TryDeleteDirectory(directory);
+        }
+    }
+
+    [Fact]
+    public async Task 旧版汇总文件_自动迁移为按会话拆分()
+    {
+        string directory = NewTempDirectory();
+        try
+        {
+            Directory.CreateDirectory(directory);
+            var legacyConversation = new Conversation { Title = "旧会话" };
+            legacyConversation.Messages.Add(new ConversationMessage("user", "hi", DateTimeOffset.Now));
+            await File.WriteAllTextAsync(
+                Path.Combine(directory, JsonConversationStore.LegacyUsingFileName),
+                System.Text.Json.JsonSerializer.Serialize(new List<Conversation> { legacyConversation }));
+
+            var store = new JsonConversationStore(directory);
+            IReadOnlyList<Conversation> active = await store.LoadAsync(archived: false);
+
+            Assert.Single(active);
+            Assert.Equal("旧会话", active[0].Title);
+            Assert.True(File.Exists(Path.Combine(directory, JsonConversationStore.UsingFolderName, active[0].Id + ".json")));
+            Assert.False(File.Exists(Path.Combine(directory, JsonConversationStore.LegacyUsingFileName)));
+            Assert.True(File.Exists(Path.Combine(directory, JsonConversationStore.LegacyUsingFileName + ".legacy")));
         }
         finally
         {

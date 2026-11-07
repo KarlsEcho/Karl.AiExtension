@@ -29,7 +29,7 @@ public sealed class Conversation
     /// <summary>稳定 Id（GUID，无分隔符）。</summary>
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
 
-    /// <summary>会话标题；默认「新对话」，首条用户消息后自动生成。</summary>
+    /// <summary>会话标题；默认「新对话」，首轮结束后由 AI 生成，可编辑。</summary>
     public string Title { get; set; } = "新对话";
 
     /// <summary>创建时间。</summary>
@@ -38,17 +38,17 @@ public sealed class Conversation
     /// <summary>最后更新时间（用于排序）。</summary>
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.Now;
 
-    /// <summary>是否已归档（归档后写入 store.json，不参与活动列表）。</summary>
+    /// <summary>是否已归档（归档后写入 stored 文件夹，不参与活动列表）。</summary>
     public bool Archived { get; set; }
 
     /// <summary>消息列表。</summary>
     public List<ConversationMessage> Messages { get; set; } = new();
 }
 
-/// <summary>会话持久化抽象：未归档会话与已归档会话分文件存放。</summary>
+/// <summary>会话持久化抽象：未归档与已归档分文件夹存放，一个会话一个 JSON 文件。</summary>
 public interface IConversationStore
 {
-    /// <summary>会话文件所在目录（可用于界面展示/排查）。</summary>
+    /// <summary>会话根目录（其下为 using/ 与 stored/ 两个文件夹）。</summary>
     string DirectoryPath { get; }
 
     /// <summary>按归档状态加载会话（按 <see cref="Conversation.UpdatedAt"/> 倒序）。</summary>
@@ -57,31 +57,43 @@ public interface IConversationStore
     /// <summary>按 Id 查找会话（未归档或已归档）。</summary>
     Task<Conversation?> GetAsync(string conversationId, CancellationToken cancellationToken = default);
 
-    /// <summary>新增或更新会话（根据 <see cref="Conversation.Archived"/> 决定写入哪个文件）。</summary>
+    /// <summary>新增或更新会话（根据 <see cref="Conversation.Archived"/> 写入 using/ 或 stored/）。</summary>
     Task SaveAsync(Conversation conversation, CancellationToken cancellationToken = default);
 
-    /// <summary>删除会话（两个文件里都移除）。</summary>
+    /// <summary>删除会话（两个文件夹里都移除）。</summary>
     Task DeleteAsync(string conversationId, CancellationToken cancellationToken = default);
 
-    /// <summary>归档/取消归档（在 using.json 与 store.json 之间移动）。</summary>
+    /// <summary>归档/取消归档（在 using/ 与 stored/ 之间移动文件）。</summary>
     Task SetArchivedAsync(string conversationId, bool archived, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
-/// JSON 文件会话存储。
+/// 按会话拆分的 JSON 文件存储。
 /// <para>
-/// 默认目录为 <c>{AppContext.BaseDirectory}/chat/history</c>；
-/// 其中 <c>using.json</c> 存放未归档会话、<c>store.json</c> 存放已归档会话。
-/// 目录可在 DI 配置（<c>AiExtensionOptions.ConversationStorePath</c>）或直接构造时替换。
+/// 默认根目录为 <c>{AppContext.BaseDirectory}/chat/history</c>，结构：
+/// <code>
+/// chat/history/
+///   using/   {conversationId}.json   // 未归档（界面标签页 / 可筛选）
+///   stored/  {conversationId}.json   // 已归档
+/// </code>
+/// 一个会话一个文件，便于单独查看、备份、筛选。
+/// 旧版汇总文件（<c>using.json</c> / <c>store.json</c>）会在首次访问时自动迁移，
+/// 迁移完成后原文件保留为 <c>*.legacy</c> 备份。
 /// </para>
 /// </summary>
 public sealed class JsonConversationStore : IConversationStore
 {
-    /// <summary>未归档会话文件名。</summary>
-    public const string UsingFileName = "using.json";
+    /// <summary>未归档会话文件夹名。</summary>
+    public const string UsingFolderName = "using";
 
-    /// <summary>已归档会话文件名。</summary>
-    public const string ArchivedFileName = "store.json";
+    /// <summary>已归档会话文件夹名。</summary>
+    public const string StoredFolderName = "stored";
+
+    /// <summary>旧版未归档汇总文件名（仅用于自动迁移）。</summary>
+    public const string LegacyUsingFileName = "using.json";
+
+    /// <summary>旧版已归档汇总文件名（仅用于自动迁移）。</summary>
+    public const string LegacyStoredFileName = "store.json";
 
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
     {
@@ -91,8 +103,9 @@ public sealed class JsonConversationStore : IConversationStore
     };
 
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private bool _legacyMigrated;
 
-    /// <summary>构造存储；<paramref name="directoryPath"/> 为空时使用默认目录。</summary>
+    /// <summary>构造存储；<paramref name="directoryPath"/> 为空时使用默认根目录。</summary>
     public JsonConversationStore(string? directoryPath = null)
     {
         DirectoryPath = string.IsNullOrWhiteSpace(directoryPath)
@@ -103,9 +116,11 @@ public sealed class JsonConversationStore : IConversationStore
     /// <inheritdoc />
     public string DirectoryPath { get; }
 
-    private string UsingFilePath => Path.Combine(DirectoryPath, UsingFileName);
+    private string UsingDirectory => Path.Combine(DirectoryPath, UsingFolderName);
 
-    private string ArchivedFilePath => Path.Combine(DirectoryPath, ArchivedFileName);
+    private string StoredDirectory => Path.Combine(DirectoryPath, StoredFolderName);
+
+    private string GetDirectory(bool archived) => archived ? StoredDirectory : UsingDirectory;
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<Conversation>> LoadAsync(bool archived, CancellationToken cancellationToken = default)
@@ -113,7 +128,26 @@ public sealed class JsonConversationStore : IConversationStore
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return (await ReadFileAsync(archived ? ArchivedFilePath : UsingFilePath, cancellationToken).ConfigureAwait(false))
+            await EnsureLegacyMigratedAsync(cancellationToken).ConfigureAwait(false);
+
+            string directory = GetDirectory(archived);
+            if (!Directory.Exists(directory))
+            {
+                return Array.Empty<Conversation>();
+            }
+
+            var conversations = new List<Conversation>();
+            foreach (string filePath in Directory.EnumerateFiles(directory, "*.json"))
+            {
+                Conversation? conversation = await ReadConversationAsync(filePath, cancellationToken).ConfigureAwait(false);
+                if (conversation is not null)
+                {
+                    conversation.Archived = archived;
+                    conversations.Add(conversation);
+                }
+            }
+
+            return conversations
                 .OrderByDescending(static conversation => conversation.UpdatedAt)
                 .ToArray();
         }
@@ -131,15 +165,8 @@ public sealed class JsonConversationStore : IConversationStore
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            List<Conversation> usingList = await ReadFileAsync(UsingFilePath, cancellationToken).ConfigureAwait(false);
-            Conversation? found = usingList.FirstOrDefault(c => string.Equals(c.Id, conversationId, StringComparison.Ordinal));
-            if (found is not null)
-            {
-                return found;
-            }
-
-            List<Conversation> archivedList = await ReadFileAsync(ArchivedFilePath, cancellationToken).ConfigureAwait(false);
-            return archivedList.FirstOrDefault(c => string.Equals(c.Id, conversationId, StringComparison.Ordinal));
+            await EnsureLegacyMigratedAsync(cancellationToken).ConfigureAwait(false);
+            return await ReadByIdAsync(conversationId, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -155,23 +182,8 @@ public sealed class JsonConversationStore : IConversationStore
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            List<Conversation> usingList = await ReadFileAsync(UsingFilePath, cancellationToken).ConfigureAwait(false);
-            List<Conversation> archivedList = await ReadFileAsync(ArchivedFilePath, cancellationToken).ConfigureAwait(false);
-
-            usingList.RemoveAll(c => string.Equals(c.Id, conversation.Id, StringComparison.Ordinal));
-            archivedList.RemoveAll(c => string.Equals(c.Id, conversation.Id, StringComparison.Ordinal));
-
-            if (conversation.Archived)
-            {
-                archivedList.Add(conversation);
-            }
-            else
-            {
-                usingList.Add(conversation);
-            }
-
-            await WriteFileAsync(UsingFilePath, usingList, cancellationToken).ConfigureAwait(false);
-            await WriteFileAsync(ArchivedFilePath, archivedList, cancellationToken).ConfigureAwait(false);
+            await EnsureLegacyMigratedAsync(cancellationToken).ConfigureAwait(false);
+            await WriteAsync(conversation, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -187,18 +199,9 @@ public sealed class JsonConversationStore : IConversationStore
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            List<Conversation> usingList = await ReadFileAsync(UsingFilePath, cancellationToken).ConfigureAwait(false);
-            List<Conversation> archivedList = await ReadFileAsync(ArchivedFilePath, cancellationToken).ConfigureAwait(false);
-
-            int removed = usingList.RemoveAll(c => string.Equals(c.Id, conversationId, StringComparison.Ordinal));
-            removed += archivedList.RemoveAll(c => string.Equals(c.Id, conversationId, StringComparison.Ordinal));
-            if (removed == 0)
-            {
-                return;
-            }
-
-            await WriteFileAsync(UsingFilePath, usingList, cancellationToken).ConfigureAwait(false);
-            await WriteFileAsync(ArchivedFilePath, archivedList, cancellationToken).ConfigureAwait(false);
+            await EnsureLegacyMigratedAsync(cancellationToken).ConfigureAwait(false);
+            TryDeleteFile(GetFilePath(conversationId, archived: false));
+            TryDeleteFile(GetFilePath(conversationId, archived: true));
         }
         finally
         {
@@ -214,24 +217,17 @@ public sealed class JsonConversationStore : IConversationStore
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            List<Conversation> usingList = await ReadFileAsync(UsingFilePath, cancellationToken).ConfigureAwait(false);
-            List<Conversation> archivedList = await ReadFileAsync(ArchivedFilePath, cancellationToken).ConfigureAwait(false);
+            await EnsureLegacyMigratedAsync(cancellationToken).ConfigureAwait(false);
 
-            Conversation? conversation = usingList.FirstOrDefault(c => string.Equals(c.Id, conversationId, StringComparison.Ordinal))
-                ?? archivedList.FirstOrDefault(c => string.Equals(c.Id, conversationId, StringComparison.Ordinal));
+            Conversation? conversation = await ReadByIdAsync(conversationId, cancellationToken).ConfigureAwait(false);
             if (conversation is null)
             {
                 return;
             }
 
-            usingList.RemoveAll(c => string.Equals(c.Id, conversationId, StringComparison.Ordinal));
-            archivedList.RemoveAll(c => string.Equals(c.Id, conversationId, StringComparison.Ordinal));
             conversation.Archived = archived;
             conversation.UpdatedAt = DateTimeOffset.Now;
-            (archived ? archivedList : usingList).Add(conversation);
-
-            await WriteFileAsync(UsingFilePath, usingList, cancellationToken).ConfigureAwait(false);
-            await WriteFileAsync(ArchivedFilePath, archivedList, cancellationToken).ConfigureAwait(false);
+            await WriteAsync(conversation, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -239,39 +235,45 @@ public sealed class JsonConversationStore : IConversationStore
         }
     }
 
-    private static async Task<List<Conversation>> ReadFileAsync(string filePath, CancellationToken cancellationToken)
+    private async Task<Conversation?> ReadByIdAsync(string conversationId, CancellationToken cancellationToken)
     {
-        if (!File.Exists(filePath))
+        foreach (bool archived in new[] { false, true })
         {
-            return new List<Conversation>();
-        }
-
-        try
-        {
-            string json = await File.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
-            if (string.IsNullOrWhiteSpace(json))
+            string filePath = GetFilePath(conversationId, archived);
+            if (!File.Exists(filePath))
             {
-                return new List<Conversation>();
+                continue;
             }
 
-            return JsonSerializer.Deserialize<List<Conversation>>(json, SerializerOptions) ?? new List<Conversation>();
+            Conversation? conversation = await ReadConversationAsync(filePath, cancellationToken).ConfigureAwait(false);
+            if (conversation is not null)
+            {
+                conversation.Archived = archived;
+                return conversation;
+            }
         }
-        catch (Exception exception) when (exception is IOException or JsonException or UnauthorizedAccessException)
-        {
-            // 会话文件损坏/不可读时降级为空列表，不阻塞界面
-            return new List<Conversation>();
-        }
+
+        return null;
     }
 
-    private static async Task WriteFileAsync(string filePath, List<Conversation> conversations, CancellationToken cancellationToken)
+    private async Task WriteAsync(Conversation conversation, CancellationToken cancellationToken)
     {
-        string? directory = Path.GetDirectoryName(filePath);
+        string targetPath = GetFilePath(conversation.Id, conversation.Archived);
+        string otherPath = GetFilePath(conversation.Id, !conversation.Archived);
+
+        string? directory = Path.GetDirectoryName(targetPath);
         if (!string.IsNullOrEmpty(directory))
         {
             Directory.CreateDirectory(directory);
         }
 
-        string json = JsonSerializer.Serialize(conversations, SerializerOptions);
+        await WriteJsonAsync(targetPath, conversation, cancellationToken).ConfigureAwait(false);
+        TryDeleteFile(otherPath);
+    }
+
+    private static async Task WriteJsonAsync(string filePath, Conversation conversation, CancellationToken cancellationToken)
+    {
+        string json = JsonSerializer.Serialize(conversation, SerializerOptions);
         string temporaryPath = filePath + ".tmp";
         try
         {
@@ -285,13 +287,108 @@ public sealed class JsonConversationStore : IConversationStore
         }
     }
 
-    private static void TryDeleteFile(string path)
+    private static async Task<Conversation?> ReadConversationAsync(string filePath, CancellationToken cancellationToken)
     {
         try
         {
-            if (File.Exists(path))
+            string json = await File.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
+            return string.IsNullOrWhiteSpace(json)
+                ? null
+                : JsonSerializer.Deserialize<Conversation>(json, SerializerOptions);
+        }
+        catch (Exception exception) when (exception is IOException or JsonException or UnauthorizedAccessException)
+        {
+            // 单个会话文件损坏时跳过，不影响其他会话
+            return null;
+        }
+    }
+
+    /// <summary>旧版汇总文件自动迁移为「一个会话一个文件」。</summary>
+    private async Task EnsureLegacyMigratedAsync(CancellationToken cancellationToken)
+    {
+        if (_legacyMigrated)
+        {
+            return;
+        }
+
+        _legacyMigrated = true;
+        await MigrateLegacyFileAsync(
+            Path.Combine(DirectoryPath, LegacyUsingFileName),
+            UsingDirectory,
+            archived: false,
+            cancellationToken).ConfigureAwait(false);
+        await MigrateLegacyFileAsync(
+            Path.Combine(DirectoryPath, LegacyStoredFileName),
+            StoredDirectory,
+            archived: true,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task MigrateLegacyFileAsync(
+        string legacyFilePath,
+        string targetDirectory,
+        bool archived,
+        CancellationToken cancellationToken)
+    {
+        if (!File.Exists(legacyFilePath))
+        {
+            return;
+        }
+
+        try
+        {
+            string json = await File.ReadAllTextAsync(legacyFilePath, cancellationToken).ConfigureAwait(false);
+            List<Conversation>? conversations = string.IsNullOrWhiteSpace(json)
+                ? null
+                : JsonSerializer.Deserialize<List<Conversation>>(json, SerializerOptions);
+
+            if (conversations is not null && conversations.Count > 0)
             {
-                File.Delete(path);
+                Directory.CreateDirectory(targetDirectory);
+                foreach (Conversation conversation in conversations)
+                {
+                    conversation.Archived = archived;
+                    string targetPath = Path.Combine(targetDirectory, SafeFileId(conversation.Id) + ".json");
+                    await WriteJsonAsync(targetPath, conversation, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            // 迁移完成保留备份，避免下次重复迁移
+            File.Move(legacyFilePath, legacyFilePath + ".legacy", overwrite: true);
+        }
+        catch (Exception exception) when (exception is IOException or JsonException or UnauthorizedAccessException)
+        {
+            // 迁移失败不阻塞使用：旧文件保留，下次启动会重试
+        }
+    }
+
+    private string GetFilePath(string conversationId, bool archived)
+        => Path.Combine(GetDirectory(archived), SafeFileId(conversationId) + ".json");
+
+    private static string SafeFileId(string conversationId)
+    {
+        if (string.IsNullOrWhiteSpace(conversationId))
+        {
+            return Guid.NewGuid().ToString("N");
+        }
+
+        char[] invalid = Path.GetInvalidFileNameChars();
+        var builder = new System.Text.StringBuilder(conversationId.Length);
+        foreach (char ch in conversationId)
+        {
+            builder.Append(Array.IndexOf(invalid, ch) >= 0 || ch is '.' or '\\' or '/' ? '_' : ch);
+        }
+
+        return builder.Length == 0 ? Guid.NewGuid().ToString("N") : builder.ToString();
+    }
+
+    private static void TryDeleteFile(string filePath)
+    {
+        try
+        {
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
             }
         }
         catch

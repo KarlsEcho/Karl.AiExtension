@@ -178,9 +178,11 @@ $env:KARL_AI_MODEL    = "deepseek-flash"
 右侧「AI 对话」支持**多标签会话**：每个标签是独立上下文，可以同时和多个会话聊天；
 子智能体也能通过 `IChatSessionFactory` 各自创建会话（`CreateNew()` / `OpenAsync(id)`），与界面共用同一套存储。
 
-- **默认存储**：`{程序目录}/chat/history/`，其中
-  - `using.json`：未归档会话（启动时自动恢复为标签页）；
-  - `store.json`：已归档会话（「归档当前」会移到这里，不再出现在标签里）。
+- **默认存储**：`{程序目录}/chat/history/`，**一个会话一个 JSON 文件**：
+  - `using/`：未归档会话（启动时恢复为标签页，可筛选/单独查看）；
+  - `stored/`：已归档会话（「归档当前」把文件移到这里，不再出现在标签里）。
+  - 例如：`chat/history/using/{conversationId}.json`、`chat/history/stored/{conversationId}.json`；
+  - 旧版汇总文件（`using.json` / `store.json`）首次启动会自动拆分迁移，原文件保留为 `*.legacy` 备份。
 - **每轮对话自动保存**；**首轮结束后由 AI 总结一个会话标题**（失败时回退为首条消息截断）；
   双击标签标题、或点「重命名」按钮可修改标题并持久化；
 - 关闭标签**不会丢记录**：可在顶部「打开会话」下拉里重新打开（已归档会话也在这个下拉里，选中会自动取消归档）；
