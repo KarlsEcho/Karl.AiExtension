@@ -129,12 +129,18 @@ src\Demo.App\bin\Debug\net10.0-windows\Demo.App.exe --smoke
 
 ### 3.3 把工具暴露给外部 MCP 宿主（stdio / HTTP）
 
+**WPF 应用内直接开**：右侧「工具与契约」页签 →「对外暴露 MCP」→ 填端口 →「开启暴露」。
+同进程内启动一个只监听 `127.0.0.1` 的 Streamable HTTP 端点（默认 `http://127.0.0.1:5199`），
+默认关闭、可随时关闭/重开，**不需要再单独启动 Demo.Host**，harness 里能直接看到应用当前的数据。
+
+无界面场景仍可用 `Demo.Host`：
+
 ```powershell
-# 本地 harness：Claude Desktop / Claude Code / CodeBuddy / WorkBuddy / Cursor / VS Code Copilot…
+# 本地 harness（stdio）：Claude Desktop / Claude Code / CodeBuddy / WorkBuddy / Cursor / VS Code Copilot…
 dotnet publish src/Demo.Host -c Release -o publish
 publish\Demo.Host.exe --stdio          # stdout 是协议通道，别用 dotnet run 直接接
 
-# 只支持 URL 的 harness
+# 无界面 HTTP（不开 WPF 应用时）
 dotnet run --project src/Demo.Host -- --http   # http://127.0.0.1:5199
 ```
 

@@ -3,12 +3,15 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:converters="clr-namespace:AI.Extension.WPF.Converters"
              mc:Ignorable="d"
              d:DesignHeight="700"
              d:DesignWidth="440"
              Background="#FFFFFF">
 
     <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+        <converters:StringToVisibilityConverter x:Key="StringToVisibility" />
         <DataTemplate x:Key="ContractTemplate">
             <Border Margin="0,3" Padding="10,8" CornerRadius="8" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1">
                 <StackPanel>
@@ -103,6 +106,55 @@
                                   ItemTemplate="{StaticResource ToolTemplate}" />
                 </Expander>
 
+                <Expander Header="对外暴露 MCP（Streamable HTTP，仅本机）" IsExpanded="True" FontSize="12" Foreground="#334155" Margin="0,0,0,8">
+                    <Border Padding="10,8" Background="#FFFBEB" BorderBrush="#FDE68A" BorderThickness="1" CornerRadius="8">
+                        <StackPanel>
+                            <TextBlock Text="默认关闭。开启后，本机其他 AI harness（Claude Code / WorkBuddy 等）可通过 URL 使用同一套 MCP 工具；不需要再单独启动 Demo.Host。"
+                                       FontSize="11"
+                                       Foreground="#92400E"
+                                       TextWrapping="Wrap" />
+
+                            <DockPanel Margin="0,8,0,0">
+                                <TextBlock Text="端口"
+                                           VerticalAlignment="Center"
+                                           FontSize="12"
+                                           Foreground="#334155" />
+                                <TextBox Text="{Binding ExposurePortText, UpdateSourceTrigger=PropertyChanged}"
+                                         IsEnabled="{Binding CanEditExposurePort}"
+                                         Width="72"
+                                         Margin="6,0,0,0"
+                                         Padding="4,2"
+                                         VerticalContentAlignment="Center" />
+                                <Button Content="{Binding ExposureButtonText}"
+                                        Command="{Binding ToggleExposureCommand}"
+                                        Margin="8,0,0,0"
+                                        Padding="12,4"
+                                        Background="#2563EB"
+                                        Foreground="White"
+                                        BorderThickness="0"
+                                        FontWeight="SemiBold"
+                                        Cursor="Hand" />
+                            </DockPanel>
+
+                            <TextBlock Text="{Binding ExposureStatusText}"
+                                       FontSize="11"
+                                       Foreground="#92400E"
+                                       TextWrapping="Wrap"
+                                       Margin="0,6,0,0" />
+                            <TextBox Text="{Binding ExposureUrl, Mode=OneWay}"
+                                     IsReadOnly="True"
+                                     FontFamily="Consolas"
+                                     FontSize="11"
+                                     Foreground="#0C4A6E"
+                                     Background="Transparent"
+                                     BorderThickness="0"
+                                     IsTabStop="False"
+                                     HorizontalScrollBarVisibility="Auto"
+                                     Visibility="{Binding ExposureUrl, Converter={StaticResource StringToVisibility}}" />
+                        </StackPanel>
+                    </Border>
+                </Expander>
+
                 <Expander Header="UI 上下文日志（环形缓冲，AI 唤醒时读取）" IsExpanded="True" FontSize="12" Foreground="#334155">
                     <ItemsControl ItemsSource="{Binding Activities}"
                                   ItemTemplate="{StaticResource ActivityTemplate}" />
@@ -111,3 +163,4 @@
         </ScrollViewer>
     </DockPanel>
 </UserControl>
+

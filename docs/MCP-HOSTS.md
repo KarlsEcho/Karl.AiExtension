@@ -85,12 +85,13 @@ dotnet publish src/Demo.Host/Demo.Host.csproj -c Release -o "$PWD\publish"
 
 ## 三、Streamable HTTP 接入配置
 
-```powershell
-dotnet run --project src/Demo.Host -- --http
-# MCP Streamable HTTP Server: http://127.0.0.1:5199
-```
+### 方式 A（推荐）：WPF 应用内开关，同进程暴露
 
-harness 侧（以支持 `url` 的客户端为例）：
+打开 WPF 应用 → 右侧「**工具与契约**」页签 →「**对外暴露 MCP**」：
+
+1. 填端口（默认 `5199`）；
+2. 点「开启暴露」——同进程内启动只监听 `127.0.0.1` 的 MCP HTTP 端点；
+3. 把页面显示的 URL 填到 harness（默认 `http://127.0.0.1:5199`）。
 
 ```json
 {
@@ -103,15 +104,26 @@ harness 侧（以支持 `url` 的客户端为例）：
 }
 ```
 
-- 采用 **无状态模式**（`Stateless = true`），适合只读/独立工具调用；
-- 只监听 `127.0.0.1`，没有鉴权。要对外暴露请在前面加反向代理/认证，并评估工具风险（`order_delete` 会真的删数据）。
+- 与 stdio 不同：**这是同一个进程**，harness 调工具看到的就是 WPF 应用里的实时数据（同一套单例/仓储）；
+- 默认关闭，随时「关闭暴露」即停止监听；可改端口后重开；
+- 采用无状态模式（`Stateless = true`），只监听 `127.0.0.1`，没有鉴权。要对外暴露请加反向代理/认证，并评估工具风险。
+
+### 方式 B：无界面（不开 WPF 应用时）
+
+```powershell
+dotnet run --project src/Demo.Host -- --http
+# MCP Streamable HTTP Server: http://127.0.0.1:5199
+```
+
+适合 CI、后台服务或只想跑 MCP、不打开桌面端的场景；数据是 Demo.Host 进程自己的（不会与 WPF 应用共享）。
 
 ---
 
 ## 四、能被 harness 用，但要注意的边界
 
-1. **MCP Server 是独立进程（或独立 HTTP 服务）**：它只看到自己进程里的数据。
-   Demo 的 `InMemoryOrderRepository` 是内存实现，所以 harness 里改的订单 **不会** 同步到 WPF 应用里那份数据。
+1. **数据边界看接入方式**：
+   - **WPF 应用内开关（方式 A）**：同进程，和界面共用同一套单例/仓储，harness 看到的是实时数据；
+   - **stdio / Demo.Host --http（方式 B）**：独立进程，只看到自己进程里的数据（Demo 用的是内存仓储）。
    生产接入时把仓储换成真实数据库/API（`IOrderRepository` 已是抽象），或让 MCP 层调用你应用的服务端接口。
 2. **工具语义不变，模型换了**：`[McpServerTool]` 的名字/描述决定模型怎么用；不同 harness 的模型能力不同，
    建议工具参数保持扁平、数量控制（单域 5~8 个），并在描述里写清前置条件。
@@ -125,7 +137,9 @@ harness 侧（以支持 `url` 的客户端为例）：
 
 ## 五、实测记录（本仓库）
 
+- **WPF 应用内开关（方式 A）**：页面上「开启暴露」→ SDK `HttpClientTransport` 连接 `http://127.0.0.1:5199` →
+  `TOOLS(8)`、`order_summary`、`order_create` 均成功，且数据与界面同一份（统计总数随界面变化）；
+  「关闭暴露」后连接被拒绝，再次开启可复用；
 - **stdio**：用独立 MCP 客户端子进程连接 → `TOOLS(8)`、`order_summary` 正常返回、非法参数返回可读错误；
-- **Streamable HTTP**：`Demo.Host --http` + SDK `HttpClientTransport` 连接 → `TOOLS(8)`、`order_summary`、
-  `order_create` 均成功（创建出 `SO-1006`）；
-- 两种模式共用同一套工具代码与同一份契约，不需要为 harness 单独适配。
+- **Demo.Host --http（方式 B）**：`TOOLS(8)`、`order_summary`、`order_create` 均成功；
+- 三种模式共用同一套工具代码与同一份契约，不需要为 harness 单独适配。

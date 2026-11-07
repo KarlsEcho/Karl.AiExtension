@@ -1,5 +1,6 @@
 using AI.Extension.WPF.Chat;
 using AI.Extension.WPF.Diagnostics;
+using AI.Extension.WPF.Mcp;
 using AI.Extension.WPF.Providers;
 using AI.Extension.WPF.Threading;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,6 +29,9 @@ public static class WpfServiceCollectionExtensions
         services.TryAddSingleton<ChatPanelViewModel>();
         services.TryAddSingleton<ProviderManagerViewModel>();
         services.TryAddSingleton<AiDiagnosticsViewModel>();
+
+        // 同进程内「对外暴露 MCP」（Streamable HTTP），由诊断面板的开关控制
+        services.TryAddSingleton<IMcpHttpExposureService, AiMcpHttpExposureService>();
         return services;
     }
 

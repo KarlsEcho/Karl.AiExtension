@@ -79,6 +79,9 @@ public static class AiExtensionServiceCollectionExtensions
         var options = new AiExtensionOptions();
         configure?.Invoke(options);
 
+        // 供上层（如 WPF 面板的「对外暴露 MCP」开关）读取工具程序集等配置
+        services.TryAddSingleton(options);
+
         // 供应商/模型管理 + 对话会话（底层仍是细粒度 API，保持可单独使用）
         services.AddAiProviderManagement(options.ProviderStore);
         services.AddAiChatSession(options.ChatOptions, options.FallbackChatClient);
