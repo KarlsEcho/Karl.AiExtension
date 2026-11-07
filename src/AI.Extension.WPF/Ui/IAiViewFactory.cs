@@ -18,7 +18,4 @@ public interface IAiViewFactory
 
     /// <summary>创建工具与契约视图。</summary>
     System.Windows.FrameworkElement CreateDiagnostics(AiDiagnosticsViewModel viewModel);
-
-    /// <summary>把配置的主题资源字典 merge 到当前 Application（幂等；供入口提前调用）。</summary>
-    void ApplyThemeResources();
 }

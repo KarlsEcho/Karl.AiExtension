@@ -225,6 +225,18 @@ dotnet run --project demo/Demo.BlazorHost   # http://localhost:5180
 与 WPF 的差异（线程调度、`SynchronizationContext`、数据绑定、预渲染）与已知限制见 [`docs/BLAZOR.md`](docs/BLAZOR.md)。
 ---
 
+### 3.7 自定义 AI UI
+
+UI 的契约就是 public 的 ViewModel（`ChatTabsViewModel` / `ChatPanelViewModel` / `ProviderManagerViewModel` / `AiDiagnosticsViewModel`）：
+
+- **整槽位替换**：实现 `IAiView<对应ViewModel>`（或继承 `AiViewBase<T>`），然后在
+  `AddAiExtensionWpf(..., ui => ui.UseChatShell<MyShell>())` 里指到槽位；
+- **只改局部**：直接把内置视图（`ChatConversationView.xaml` / `AiChatPanel.xaml`）复制到你的工程按需修改——
+  内置视图只依赖 public ViewModel，没有隐藏契约。
+
+框架不再提供「模板 key / 局部模板替换」层：WPF 原生的 `DataTemplate` / `Style` 覆盖已经够用，少一层抽象少一份维护负担。
+完整说明与示例见 [`docs/UI.md`](docs/UI.md)。
+
 ## 4. 新增一个 AI 能力（5 步）
 
 以「客户管理」为例：
@@ -261,5 +273,7 @@ dotnet run --project demo/Demo.BlazorHost   # http://localhost:5180
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)：依赖图、调用时序、源生成器规则、DI 生命周期、线程模型、扩展指引
 - [`docs/ADOPTION.md`](docs/ADOPTION.md)：**把框架接入存量 WPF 项目的 6 步迁移指南**（含分阶段推进、常见坑、参考实现）
 - [`docs/MCP-HOSTS.md`](docs/MCP-HOSTS.md)：**把 MCP 层交给 Claude Code / CodeBuddy / WorkBuddy / Cursor 等 harness 使用**（stdio / HTTP 两种传输的配置与边界）
+- [`docs/UI.md`](docs/UI.md)：**自定义 AI UI**（整槽位替换 / 复制内置视图改造；为什么不做模板 key 层）
 - [`docs/BLAZOR.md`](docs/BLAZOR.md)：Blazor 分支如何复用同一套核心
+
 

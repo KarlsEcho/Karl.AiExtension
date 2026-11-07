@@ -17,7 +17,6 @@ public sealed class AiViewFactory : IAiViewFactory
     {
         _services = services ?? throw new ArgumentNullException(nameof(services));
         _options = options ?? throw new ArgumentNullException(nameof(options));
-        ApplyThemeResources();
     }
 
     /// <inheritdoc />
@@ -35,9 +34,6 @@ public sealed class AiViewFactory : IAiViewFactory
     /// <inheritdoc />
     public FrameworkElement CreateDiagnostics(AiDiagnosticsViewModel viewModel)
         => Create(_options.DiagnosticsView ?? typeof(AiDiagnosticsPanel), viewModel);
-
-    /// <inheritdoc />
-    public void ApplyThemeResources() => AiUiTheme.Merge(_options);
 
     private FrameworkElement Create<TViewModel>(Type viewType, TViewModel viewModel)
     {
@@ -71,36 +67,5 @@ public sealed class AiViewFactory : IAiViewFactory
         }
 
         return element;
-    }
-}
-
-/// <summary>把 <see cref="AiExtensionUiOptions.TemplateOverrides"/> merge 到 Application 资源（幂等）。</summary>
-internal static class AiUiTheme
-{
-    private static readonly HashSet<ResourceDictionary> Merged = new();
-
-    public static void Merge(AiExtensionUiOptions options)
-    {
-        ResourceDictionary? overrides = options.TemplateOverrides;
-        if (overrides is null)
-        {
-            return;
-        }
-
-        Application? application = Application.Current;
-        if (application is null)
-        {
-            return;
-        }
-
-        lock (Merged)
-        {
-            if (!Merged.Add(overrides))
-            {
-                return;
-            }
-
-            application.Resources.MergedDictionaries.Add(overrides);
-        }
     }
 }

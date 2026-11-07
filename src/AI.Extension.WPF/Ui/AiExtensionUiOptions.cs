@@ -10,6 +10,7 @@ namespace AI.Extension.WPF.Ui;
 /// <see cref="FrameworkElement"/> 且实现对应的 <see cref="IAiView{TViewModel}"/>（泛型方法在编译期检查）。
 /// <para>
 /// 默认全部使用内置视图；只配需要的槽位即可，其余保持内置实现。
+/// 只替换局部内容时，推荐直接把内置视图的 XAML 复制到宿主工程按需修改（内置视图只依赖 public ViewModel）。
 /// </para>
 /// </summary>
 public sealed class AiExtensionUiOptions
@@ -25,12 +26,6 @@ public sealed class AiExtensionUiOptions
 
     /// <summary>工具与契约视图类型（默认 <see cref="AiDiagnosticsPanel"/>）。</summary>
     public Type? DiagnosticsView { get; private set; }
-
-    /// <summary>
-    /// 主题/局部模板覆盖字典：会 merge 到 <see cref="Application.Resources"/>，
-    /// 后合并优先，用于覆盖框架默认模板（例如消息气泡、工具轨迹）。
-    /// </summary>
-    public ResourceDictionary? TemplateOverrides { get; set; }
 
     /// <summary>替换 AI 对话外壳（类型必须实现 <see cref="IAiView{TViewModel}"/> 且是 FrameworkElement）。</summary>
     public void UseChatShell<TView>()
