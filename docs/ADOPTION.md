@@ -32,9 +32,9 @@
 **B. 打包成 NuGet 后引用**
 
 ```xml
-<PackageReference Include="AI.Extension.Abstractions" Version="0.1.0" />
-<PackageReference Include="AI.Extension.Core" Version="0.1.0" />
-<PackageReference Include="AI.Extension.WPF" Version="0.1.0" />
+<PackageReference Include="Karl.AIExtension.Abstractions" Version="0.2.0-beta.1" />
+<PackageReference Include="Karl.AIExtension.Core" Version="0.2.0-beta.1" />
+<PackageReference Include="Karl.AIExtension.WPF" Version="0.2.0-beta.1" />
 ```
 
 > ⚠️ **源码树方式下生成器不会自动传递**：MCP 项目里必须显式把它当 Analyzer 引用，否则契约桥接不会生成：

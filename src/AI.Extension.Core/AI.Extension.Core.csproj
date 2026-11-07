@@ -4,7 +4,7 @@
     <RootNamespace>AI.Extension</RootNamespace>
     <Description>AI Extension 运行时核心：会话、流式输出、MCP 进程内宿主、UI 上下文环形日志、MVVM 基础设施。</Description>
     <IsPackable>true</IsPackable>
-    <PackageId>AI.Extension.Core</PackageId>
+    <PackageId>Karl.AIExtension.Core</PackageId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,3 +24,4 @@
   </ItemGroup>
 
 </Project>
+

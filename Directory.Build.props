@@ -9,7 +9,7 @@
     <Deterministic>true</Deterministic>
 
     <!-- NuGet 包元数据（demo/tests 通过 IsPackable=false 排除） -->
-    <Version>0.1.0-beta.1</Version>
+    <Version>0.2.0-beta.1</Version>
     <Company>Karl</Company>
     <Product>Karl.AiExtension</Product>
     <Authors>Karl</Authors>
@@ -44,3 +44,4 @@
   </ItemGroup>
 
 </Project>
+

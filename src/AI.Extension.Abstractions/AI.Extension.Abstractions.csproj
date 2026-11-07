@@ -4,7 +4,7 @@
     <RootNamespace>AI.Extension</RootNamespace>
     <Description>AI Extension 契约层：AI 契约标注特性、桥接基类、UI 上下文追踪与 DI 基础设施。</Description>
     <IsPackable>true</IsPackable>
-    <PackageId>AI.Extension.Abstractions</PackageId>
+    <PackageId>Karl.AIExtension.Abstractions</PackageId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -31,3 +31,4 @@
   </ItemGroup>
 
 </Project>
+
