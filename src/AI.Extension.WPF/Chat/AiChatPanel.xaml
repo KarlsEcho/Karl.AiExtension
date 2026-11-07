@@ -149,7 +149,7 @@
                 <TextBox x:Name="InputBox"
                          Grid.Column="0"
                          Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}"
-                         KeyDown="InputBox_KeyDown"
+                         PreviewKeyDown="InputBox_PreviewKeyDown"
                          AcceptsReturn="True"
                          TextWrapping="Wrap"
                          MaxHeight="90"

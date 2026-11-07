@@ -21,6 +21,7 @@
     <ProjectReference Include="..\..\src\Demo.MCP\Demo.MCP.csproj" />
     <ProjectReference Include="..\..\src\Demo.ViewModel\Demo.ViewModel.csproj" />
     <ProjectReference Include="..\..\src\AI.Extension.Core\AI.Extension.Core.csproj" />
+    <ProjectReference Include="..\..\src\AI.Extension.WPF\AI.Extension.WPF.csproj" />
   </ItemGroup>
 
   <ItemGroup>
