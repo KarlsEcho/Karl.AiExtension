@@ -45,12 +45,13 @@ AI 操作：    自然语言 ──► 大模型 ──► MCP 工具 ──┘
 ## 2. 项目结构
 
 ```
-src/
+src/                                    ← 框架本体
   AI.Extension.Abstractions/            绑定声明特性（[AiContractBinding] / [AiMethod]）、桥接接口、UI 抽象
   AI.Extension.Abstractions.Generator/  Roslyn 增量源生成器（按 MCP 层的绑定声明产出桥接）
   AI.Extension.Core/                    会话核心：工具循环、进程内 MCP 宿主、UI 日志、供应商/模型管理、MVVM 基类；<br>一键接入门面 `AddAiExtension(options => ...)`
-  AI.Extension.WPF/                     WPF 外壳：聊天面板、模型与供应商面板、工具/契约诊断面板、WpfUiDispatcher
+  AI.Extension.WPF/                     WPF 外壳：聊天面板、模型与供应商面板、工具/契约诊断面板、UI 可替换视图工厂、WpfUiDispatcher
   AI.Extension.Blazor/                  Blazor 外壳（Razor 组件，与 WPF 共享 ChatSession）
+demo/                                   ← 演示/参考实现（不参与框架包）
   Demo.Contract/                        纯业务契约（IOrderService），零实现、零 AI 依赖
   Demo.Model/                           领域模型 + 内存仓储
   Demo.ViewModel/                       OrdersViewModel：实现契约，UI 与 AI 共用的业务入口
@@ -67,6 +68,9 @@ docs/
   ARCHITECTURE.md                        依赖图、时序、生成规则、扩展指引
   BLAZOR.md                              Blazor 分支说明（由 Blazor 分支实现者维护）
 ```
+
+> 框架代码只在 `src/`；`demo/` 是可直接运行/参考的样例，复制框架给业务项目时**不要带 demo**。
+
 
 依赖方向（箭头表示「引用」；关键约束：**契约层不引用任何 AI/MCP 包**）：
 
@@ -95,7 +99,7 @@ dotnet test                                   # 生成器 + 业务/闭环测试
 ### 3.1 看闭环：控制台宿主（推荐先跑这个）
 
 ```powershell
-dotnet run --project src/Demo.Host
+dotnet run --project demo/Demo.Host
 ```
 
 它会：建容器 → 启动进程内 MCP Server → 连接进程内 MCP Client → 列出 8 个工具 → 直接调用工具 → 走一轮完整对话（统计 / 查详情 / 取消订单），并打印工具调用轨迹。
@@ -103,14 +107,14 @@ dotnet run --project src/Demo.Host
 诊断命令（不启动 MCP）：
 
 ```powershell
-dotnet run --project src/Demo.Host -- --check-providers   # 列出供应商并对已启用者测试连通性/拉取模型
-dotnet run --project src/Demo.Host -- --chat "帮我新增一个客户叫测试客户，金额 100"   # 用真实模型跑一轮工具调用
+dotnet run --project demo/Demo.Host -- --check-providers   # 列出供应商并对已启用者测试连通性/拉取模型
+dotnet run --project demo/Demo.Host -- --chat "帮我新增一个客户叫测试客户，金额 100"   # 用真实模型跑一轮工具调用
 ```
 
 ### 3.2 看界面：WPF 宿主
 
 ```powershell
-dotnet run --project src/Demo.App
+dotnet run --project demo/Demo.App
 ```
 
 左侧是传统订单表格（人类路径），右侧是 AI 面板（Agent 路径）。
@@ -123,7 +127,7 @@ dotnet run --project src/Demo.App
 无界面自检（CI 可用，会验证一次真实的「创建 → 删除」写链路）：
 
 ```powershell
-src\Demo.App\bin\Debug\net10.0-windows\Demo.App.exe --smoke
+demo\Demo.App\bin\Debug\net10.0-windows\Demo.App.exe --smoke
 # 结果写入同目录 smoke.log
 ```
 
@@ -137,11 +141,11 @@ src\Demo.App\bin\Debug\net10.0-windows\Demo.App.exe --smoke
 
 ```powershell
 # 本地 harness（stdio）：Claude Desktop / Claude Code / CodeBuddy / WorkBuddy / Cursor / VS Code Copilot…
-dotnet publish src/Demo.Host -c Release -o publish
+dotnet publish demo/Demo.Host -c Release -o publish
 publish\Demo.Host.exe --stdio          # stdout 是协议通道，别用 dotnet run 直接接
 
 # 无界面 HTTP（不开 WPF 应用时）
-dotnet run --project src/Demo.Host -- --http   # http://127.0.0.1:5199
+dotnet run --project demo/Demo.Host -- --http   # http://127.0.0.1:5199
 ```
 
 配置模板、各 harness 的配置位置、WorkBuddy/CodeBuddy 的接入方式与验证步骤见
@@ -169,7 +173,7 @@ $env:KARL_AI_MODEL    = "deepseek-flash"
 
 > DeepSeek 参数以官方 2026 文档为准：OpenAI 格式 base_url = `https://api.deepseek.com`（不带 `/v1`），
 > 当前模型为 `deepseek-flash` / `deepseek-v4-pro`（旧名 `deepseek-chat` / `deepseek-reasoner` 已下线）。
-> 可用 `dotnet run --project src/Demo.Host -- --check-providers` 直接验证端点与模型。
+> 可用 `dotnet run --project demo/Demo.Host -- --check-providers` 直接验证端点与模型。
 
 未配置任何可用供应商时，`IChatClientAccessor` 会退回兜底客户端（`Demo.Core` 注入离线规则客户端），保证骨架永远可运行。
 
@@ -214,7 +218,7 @@ services.AddAiExtensionWpf(options =>
 ### 3.6 Blazor 宿主
 
 ```powershell
-dotnet run --project src/Demo.BlazorHost   # http://localhost:5180
+dotnet run --project demo/Demo.BlazorHost   # http://localhost:5180
 ```
 
 订单表格 + AI 聊天面板 + 工具清单 +（供应商/模型切换），复用同一套 `ChatSession` / `Demo.Core` / 进程内 MCP 与同一份供应商配置。
@@ -258,3 +262,4 @@ dotnet run --project src/Demo.BlazorHost   # http://localhost:5180
 - [`docs/ADOPTION.md`](docs/ADOPTION.md)：**把框架接入存量 WPF 项目的 6 步迁移指南**（含分阶段推进、常见坑、参考实现）
 - [`docs/MCP-HOSTS.md`](docs/MCP-HOSTS.md)：**把 MCP 层交给 Claude Code / CodeBuddy / WorkBuddy / Cursor 等 harness 使用**（stdio / HTTP 两种传输的配置与边界）
 - [`docs/BLAZOR.md`](docs/BLAZOR.md)：Blazor 分支如何复用同一套核心
+

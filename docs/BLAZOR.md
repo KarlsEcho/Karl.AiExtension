@@ -11,7 +11,7 @@ Blazor 分支的目标不是「另写一套 AI 界面」，而是验证架构里
 | 项目 | 作用 |
 | --- | --- |
 | `src/AI.Extension.Blazor` | 可复用 Blazor 外壳：`ChatPanel` / `AiModelSelector` / `ToolCallTraceList` / `AddAiExtensionBlazor` / 样式 |
-| `src/Demo.BlazorHost` | Blazor Server 演示宿主：订单表格 + AI 聊天面板 + MCP 工具轨迹，固定端口 `http://localhost:5180` |
+| `demo/Demo.BlazorHost` | Blazor Server 演示宿主：订单表格 + AI 聊天面板 + MCP 工具轨迹，固定端口 `http://localhost:5180` |
 
 ## 一、复用了什么
 
@@ -70,7 +70,7 @@ builder.Services.AddAiExtensionBlazor(); // Blazor 外壳的 UI 服务（幂等 
 `AddAiChatSession()` 提供。这样 Blazor 与 WPF/控制台宿主共享同一份 AI 配置与同一个进程内 MCP Server，
 而不是各自 new 一套。
 
-## 三、宿主启动流程（`src/Demo.BlazorHost/Program.cs`）
+## 三、宿主启动流程（`demo/Demo.BlazorHost/Program.cs`）
 
 ```text
 builder.Services.AddDemoCore()                 // 一键门面：业务 + 会话 + 桥接 + 进程内 MCP + 自动启动
@@ -139,10 +139,10 @@ MCP 连接仍然严格发生在 `StartAsync` 之后、`Run` 之前，`ChatSessio
 
 ```powershell
 # 1) 构建
-dotnet build src/Demo.BlazorHost/Demo.BlazorHost.csproj
+dotnet build demo/Demo.BlazorHost/Demo.BlazorHost.csproj
 
 # 2) 启动（固定 http://localhost:5180，Development 环境由 launchSettings.json 提供）
-dotnet run --project src/Demo.BlazorHost
+dotnet run --project demo/Demo.BlazorHost
 
 # 3) 另开一个终端验证
 $r = Invoke-WebRequest http://localhost:5180 -UseBasicParsing
@@ -210,9 +210,10 @@ $r.Content.Contains('暂无可用供应商')       # 未启用任何供应商时
 
 - **`dotnet run` 启动即抛 `JsonSerializerOptions instance must specify a TypeInfoResolver setting before being marked as read-only`**：
   这是仓库里 `bin/` 残留了旧版 `Demo.MCP.dll`（旧版本未给工具序列化配置 `TypeInfoResolver`）导致的；
-  源码 `src/Demo.MCP/DemoMcpExtensions.cs` 已经显式配置 `DefaultJsonTypeInfoResolver`。
-  清除 `src/Demo.MCP/bin`、`src/Demo.BlazorHost/bin|obj` 后重新构建即可。
+  源码 `demo/Demo.MCP/DemoMcpExtensions.cs` 已经显式配置 `DefaultJsonTypeInfoResolver`。
+  清除 `demo/Demo.MCP/bin`、`demo/Demo.BlazorHost/bin|obj` 后重新构建即可。
 - **`app.Run()` 在 `StartAsync` 之后不可用**：见上文「为什么最后不是字面上的 app.Run()」。
 - **端口被占用**：先 `Get-NetTCPConnection -LocalPort 5180 -State Listen` 确认，再结束残留进程。
+
 
 

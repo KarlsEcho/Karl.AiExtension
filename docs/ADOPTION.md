@@ -277,8 +277,9 @@ await bridge.ConnectAsync();
 
 本仓库就是「按上面步骤做出来」的完整样例：
 
-- 契约：[`Demo.Contract/IOrderService.cs`](../src/Demo.Contract/IOrderService.cs)
-- 实现（UI + AI 共用）：[`Demo.ViewModel/OrdersViewModel.cs`](../src/Demo.ViewModel/OrdersViewModel.cs)
-- MCP 绑定与语义封装：[`Demo.MCP/Ai/OrderServiceBinding.cs`](../src/Demo.MCP/Ai/OrderServiceBinding.cs)、[`Demo.MCP/OrderTools.cs`](../src/Demo.MCP/OrderTools.cs)
-- 组合根：[`Demo.Core/DemoBootstrap.cs`](../src/Demo.Core/DemoBootstrap.cs)
-- WPF 宿主与面板：[`Demo.App/App.xaml.cs`](../src/Demo.App/App.xaml.cs)、[`Demo.View/MainWindow.xaml`](../src/Demo.View/MainWindow.xaml)
+- 契约：[`Demo.Contract/IOrderService.cs`](../demo/Demo.Contract/IOrderService.cs)
+- 实现（UI + AI 共用）：[`Demo.ViewModel/OrdersViewModel.cs`](../demo/Demo.ViewModel/OrdersViewModel.cs)
+- MCP 绑定与语义封装：[`Demo.MCP/Ai/OrderServiceBinding.cs`](../demo/Demo.MCP/Ai/OrderServiceBinding.cs)、[`Demo.MCP/OrderTools.cs`](../demo/Demo.MCP/OrderTools.cs)
+- 组合根：[`Demo.Core/DemoBootstrap.cs`](../demo/Demo.Core/DemoBootstrap.cs)
+- WPF 宿主与面板：[`Demo.App/App.xaml.cs`](../demo/Demo.App/App.xaml.cs)、[`Demo.View/MainWindow.xaml`](../demo/Demo.View/MainWindow.xaml)
+

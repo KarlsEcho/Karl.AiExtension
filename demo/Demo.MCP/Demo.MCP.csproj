@@ -13,14 +13,15 @@
   <ItemGroup>
     <!-- 依赖方向：MCP 层 -> 契约层（MCP 主动依赖契约，契约对 AI 无感知） -->
     <ProjectReference Include="..\Demo.Contract\Demo.Contract.csproj" />
-    <ProjectReference Include="..\AI.Extension.Abstractions\AI.Extension.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\AI.Extension.Abstractions\AI.Extension.Abstractions.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- 源码树中分析器不随 ProjectReference 传递，这里显式引入；打 NuGet 包后由 Abstractions 的 analyzers 目录自动提供 -->
-    <ProjectReference Include="..\AI.Extension.Abstractions.Generator\AI.Extension.Abstractions.Generator.csproj"
+    <ProjectReference Include="..\..\src\AI.Extension.Abstractions.Generator\AI.Extension.Abstractions.Generator.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>
+

@@ -9,7 +9,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Demo.ViewModel\Demo.ViewModel.csproj" />
-    <ProjectReference Include="..\AI.Extension.WPF\AI.Extension.WPF.csproj" />
+    <ProjectReference Include="..\..\src\AI.Extension.WPF\AI.Extension.WPF.csproj" />
   </ItemGroup>
 
 </Project>
+

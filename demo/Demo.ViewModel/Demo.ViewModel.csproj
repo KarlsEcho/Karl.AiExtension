@@ -12,7 +12,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Demo.Contract\Demo.Contract.csproj" />
     <ProjectReference Include="..\Demo.Model\Demo.Model.csproj" />
-    <ProjectReference Include="..\AI.Extension.Core\AI.Extension.Core.csproj" />
+    <ProjectReference Include="..\..\src\AI.Extension.Core\AI.Extension.Core.csproj" />
   </ItemGroup>
 
 </Project>
+

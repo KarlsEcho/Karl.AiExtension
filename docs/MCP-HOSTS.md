@@ -19,11 +19,11 @@ stdio 模式下 **stdout 是协议通道**，任何构建输出/日志混进去�
 
 ```powershell
 # 推荐：发布成可执行文件
-dotnet publish src/Demo.Host/Demo.Host.csproj -c Release -o "$PWD\publish"
+dotnet publish demo/Demo.Host/Demo.Host.csproj -c Release -o "$PWD\publish"
 # 入口：<仓库>\publish\Demo.Host.exe
 ```
 
-或者直接用已构建产物：`<仓库>\src\Demo.Host\bin\Debug\net10.0-windows\Demo.Host.dll`（配合 `dotnet` 命令）。
+或者直接用已构建产物：`<仓库>\demo\Demo.Host\bin\Debug\net10.0-windows\Demo.Host.dll`（配合 `dotnet` 命令）。
 
 > 日志已经全部走 stderr（stdio 模式里 `LogToStandardErrorThreshold = Trace`），不会污染协议。
 
@@ -111,7 +111,7 @@ dotnet publish src/Demo.Host/Demo.Host.csproj -c Release -o "$PWD\publish"
 ### 方式 B：无界面（不开 WPF 应用时）
 
 ```powershell
-dotnet run --project src/Demo.Host -- --http
+dotnet run --project demo/Demo.Host -- --http
 # MCP Streamable HTTP Server: http://127.0.0.1:5199
 ```
 
@@ -143,3 +143,5 @@ dotnet run --project src/Demo.Host -- --http
 - **stdio**：用独立 MCP 客户端子进程连接 → `TOOLS(8)`、`order_summary` 正常返回、非法参数返回可读错误；
 - **Demo.Host --http（方式 B）**：`TOOLS(8)`、`order_summary`、`order_create` 均成功；
 - 三种模式共用同一套工具代码与同一份契约，不需要为 harness 单独适配。
+
+

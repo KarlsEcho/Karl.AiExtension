@@ -9,10 +9,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Demo.Core\Demo.Core.csproj" />
-    <ProjectReference Include="..\AI.Extension.Blazor\AI.Extension.Blazor.csproj" />
-    <ProjectReference Include="..\AI.Extension.Core\AI.Extension.Core.csproj" />
+    <ProjectReference Include="..\..\src\AI.Extension.Blazor\AI.Extension.Blazor.csproj" />
+    <ProjectReference Include="..\..\src\AI.Extension.Core\AI.Extension.Core.csproj" />
     <ProjectReference Include="..\Demo.ViewModel\Demo.ViewModel.csproj" />
     <ProjectReference Include="..\Demo.Model\Demo.Model.csproj" />
   </ItemGroup>
 
 </Project>
+

@@ -19,8 +19,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\AI.Extension.WPF\AI.Extension.WPF.csproj" />
-    <ProjectReference Include="..\AI.Extension.Core\AI.Extension.Core.csproj" />
+    <ProjectReference Include="..\..\src\AI.Extension.WPF\AI.Extension.WPF.csproj" />
+    <ProjectReference Include="..\..\src\AI.Extension.Core\AI.Extension.Core.csproj" />
     <ProjectReference Include="..\Demo.MCP\Demo.MCP.csproj" />
     <ProjectReference Include="..\Demo.ViewModel\Demo.ViewModel.csproj" />
     <ProjectReference Include="..\Demo.Contract\Demo.Contract.csproj" />
@@ -28,3 +28,4 @@
   </ItemGroup>
 
 </Project>
+
