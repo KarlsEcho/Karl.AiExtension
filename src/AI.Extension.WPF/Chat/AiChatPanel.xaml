@@ -11,14 +11,56 @@
 
     <UserControl.Resources>
         <DataTemplate x:Key="TabHeaderTemplate">
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="{Binding Title}"
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0"
+                           Text="{Binding Title}"
                            FontSize="12"
                            VerticalAlignment="Center"
                            MaxWidth="120"
                            TextTrimming="CharacterEllipsis"
-                           ToolTip="{Binding Title}" />
-                <Button Content="×"
+                           ToolTip="双击重命名会话">
+                    <TextBlock.InputBindings>
+                        <MouseBinding MouseAction="LeftDoubleClick"
+                                      Command="{Binding BeginEditTitleCommand}" />
+                    </TextBlock.InputBindings>
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Visible" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsEditingTitle}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+
+                <TextBox Grid.Column="0"
+                         Text="{Binding EditingTitle, UpdateSourceTrigger=PropertyChanged}"
+                         FontSize="12"
+                         Width="120"
+                         VerticalContentAlignment="Center"
+                         PreviewKeyDown="TitleEditBox_PreviewKeyDown"
+                         Loaded="TitleEditBox_Loaded">
+                    <TextBox.Style>
+                        <Style TargetType="TextBox">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsEditingTitle}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBox.Style>
+                </TextBox>
+
+                <Button Grid.Column="1"
+                        Content="×"
                         Margin="6,0,0,0"
                         Padding="4,0"
                         Background="Transparent"
@@ -26,8 +68,8 @@
                         Command="{Binding DataContext.CloseTabCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                         CommandParameter="{Binding}"
                         Cursor="Hand"
-                        ToolTip="关闭会话（记录保留，下次启动可恢复）" />
-            </StackPanel>
+                        ToolTip="关闭会话（记录保留，可在「打开会话」下拉里重新打开）" />
+            </Grid>
         </DataTemplate>
 
         <DataTemplate x:Key="TabContentTemplate">
@@ -45,6 +87,14 @@
         <Border Grid.Row="0" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="8,6">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button Content="重命名"
+                            Command="{Binding SelectedTab.BeginEditTitleCommand}"
+                            Padding="10,4"
+                            Background="#F1F5F9"
+                            BorderThickness="0"
+                            FontSize="11"
+                            Cursor="Hand"
+                            ToolTip="重命名当前会话（也可以双击标签标题）" />
                     <Button Content="归档当前"
                             Command="{Binding ArchiveSelectedCommand}"
                             Padding="10,4"
@@ -74,6 +124,17 @@
                         FontSize="11"
                         FontWeight="SemiBold"
                         Cursor="Hand" />
+
+                <ComboBox x:Name="OpenableBox"
+                          Width="150"
+                          Margin="8,0,0,0"
+                          ItemsSource="{Binding OpenableConversations}"
+                          SelectedItem="{Binding SelectedConversation, Mode=TwoWay}"
+                          DisplayMemberPath="DisplayTitle"
+                          IsEditable="False"
+                          VerticalContentAlignment="Center"
+                          FontSize="11"
+                          ToolTip="重新打开已关闭的会话（已归档会话选中后会自动取消归档）" />
 
                 <TextBlock Text="{Binding StatusText}"
                            Margin="10,0,0,0"

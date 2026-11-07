@@ -14,6 +14,8 @@ public sealed class ChatPanelViewModel : ObservableObject, IDisposable
     private string _inputText = string.Empty;
     private bool _isBusy;
     private string _statusText = "就绪：可以问我「帮我统计一下订单情况」";
+    private bool _isEditingTitle;
+    private string _editingTitle = string.Empty;
 
     /// <summary>构造视图模型。</summary>
     public ChatPanelViewModel(
@@ -31,8 +33,12 @@ public sealed class ChatPanelViewModel : ObservableObject, IDisposable
             _ => SendAsync(),
             _ => !IsBusy && !string.IsNullOrWhiteSpace(InputText));
         ClearCommand = new RelayCommand(_ => Clear());
+        BeginEditTitleCommand = new RelayCommand(_ => BeginEditTitle());
+        CommitTitleCommand = new AsyncRelayCommand(_ => CommitTitleAsync());
+        CancelEditTitleCommand = new RelayCommand(_ => IsEditingTitle = false);
 
         _session.ToolCallCompleted += OnToolCallCompleted;
+        _session.TitleChanged += OnTitleChanged;
 
         // 恢复已持久化的历史消息（多标签/重启后可见）
         foreach (ConversationMessage message in _session.ConversationMessages)
@@ -55,8 +61,31 @@ public sealed class ChatPanelViewModel : ObservableObject, IDisposable
     /// <summary>当前会话对象（供多标签容器做归档/删除）。</summary>
     public ChatSession Session => _session;
 
-    /// <summary>会话标题（首条用户消息自动生成，可持久化）。</summary>
+    /// <summary>会话标题（首轮结束后由 AI 生成，可双击标签重命名）。</summary>
     public string Title => _session.ConversationTitle ?? "新对话";
+
+    /// <summary>是否处于标题编辑状态（标签头上显示输入框）。</summary>
+    public bool IsEditingTitle
+    {
+        get => _isEditingTitle;
+        private set => SetProperty(ref _isEditingTitle, value);
+    }
+
+    /// <summary>编辑中的标题文本。</summary>
+    public string EditingTitle
+    {
+        get => _editingTitle;
+        set => SetProperty(ref _editingTitle, value);
+    }
+
+    /// <summary>开始编辑标题。</summary>
+    public RelayCommand BeginEditTitleCommand { get; }
+
+    /// <summary>提交标题修改。</summary>
+    public AsyncRelayCommand CommitTitleCommand { get; }
+
+    /// <summary>取消标题修改。</summary>
+    public RelayCommand CancelEditTitleCommand { get; }
 
     /// <summary>对话消息。</summary>
     public ObservableCollection<ChatMessageViewModel> Messages { get; } = new();
@@ -161,6 +190,36 @@ public sealed class ChatPanelViewModel : ObservableObject, IDisposable
         }
     }
 
+    private void BeginEditTitle()
+    {
+        EditingTitle = Title;
+        IsEditingTitle = true;
+    }
+
+    private async Task CommitTitleAsync()
+    {
+        string title = EditingTitle?.Trim() ?? string.Empty;
+        await _session.RenameAsync(title).ConfigureAwait(true);
+        IsEditingTitle = false;
+        OnPropertyChanged(nameof(Title));
+    }
+
+    private async void OnTitleChanged(string title)
+    {
+        try
+        {
+            await _uiDispatcher.InvokeAsync(() =>
+            {
+                OnPropertyChanged(nameof(Title));
+                return Task.CompletedTask;
+            }).ConfigureAwait(true);
+        }
+        catch (Exception)
+        {
+            // 窗口关闭时忽略
+        }
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {
@@ -172,6 +231,7 @@ public sealed class ChatPanelViewModel : ObservableObject, IDisposable
         _disposed = true;
         _chatClientAccessor.Changed -= OnChatClientChanged;
         _session.ToolCallCompleted -= OnToolCallCompleted;
+        _session.TitleChanged -= OnTitleChanged;
     }
 
     private async void OnChatClientChanged(object? sender, EventArgs e)

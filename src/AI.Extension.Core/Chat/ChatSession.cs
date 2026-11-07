@@ -70,6 +70,9 @@ public sealed class ChatSession
     /// <summary>工具调用完成事件（UI 可订阅以实时刷新轨迹）。</summary>
     public event Action<AiToolCallTrace>? ToolCallCompleted;
 
+    /// <summary>会话标题变化（AI 自动生成或用户重命名）。</summary>
+    public event Action<string>? TitleChanged;
+
     /// <summary>绑定的会话 Id（未绑定时为 null）。</summary>
     public string? ConversationId => _conversation?.Id;
 
@@ -210,12 +213,22 @@ public sealed class ChatSession
                     trace.ResultPreview,
                     (long)trace.Duration.TotalMilliseconds)).ToArray()));
             _conversation.UpdatedAt = now;
+            string? generatedTitle = null;
             if (string.IsNullOrWhiteSpace(_conversation.Title) || _conversation.Title == "新对话")
             {
-                _conversation.Title = BuildTitle(userInput);
+                // 首轮结束：让 AI 根据这一轮对话生成标题，失败时用首条消息截断兜底
+                generatedTitle = (_conversation.Messages.Count == 2
+                        ? await TryGenerateTitleAsync(userInput, finalText, cancellationToken).ConfigureAwait(false)
+                        : null)
+                    ?? BuildTitle(userInput);
+                _conversation.Title = generatedTitle;
             }
 
             await PersistSafeAsync(cancellationToken).ConfigureAwait(false);
+            if (generatedTitle is not null)
+            {
+                TitleChanged?.Invoke(generatedTitle);
+            }
         }
 
         _activityTracker.Record(
@@ -320,6 +333,7 @@ public sealed class ChatSession
         _conversation.Title = string.IsNullOrWhiteSpace(title) ? "新对话" : title.Trim();
         _conversation.UpdatedAt = DateTimeOffset.Now;
         await PersistSafeAsync(cancellationToken).ConfigureAwait(false);
+        TitleChanged?.Invoke(_conversation.Title);
     }
 
     /// <summary>归档当前会话（移动到 store.json）。</summary>
@@ -377,6 +391,54 @@ public sealed class ChatSession
             // 会话落盘失败不阻塞对话（界面仍可继续使用）
             System.Diagnostics.Debug.WriteLine($"保存会话失败: {exception}");
         }
+    }
+
+    /// <summary>首轮结束后让模型生成会话标题；失败/为空时返回 null（由调用方兜底）。</summary>
+    private async Task<string?> TryGenerateTitleAsync(string userInput, string assistantReply, CancellationToken cancellationToken)
+    {
+        if (!_options.AutoTitleFromFirstRound)
+        {
+            return null;
+        }
+
+        try
+        {
+            int maxLength = Math.Clamp(_options.AutoTitleMaxLength, 4, 40);
+            var messages = new List<ChatMessage>
+            {
+                new(ChatRole.System, $"你是一个会话标题生成器。请根据对话内容生成一个简短的中文标题，不超过 {maxLength} 个字；不要引号、不要句号、不要解释，只输出标题本身。"),
+                new(ChatRole.User, $"用户：{userInput}\n助手：{assistantReply}"),
+            };
+
+            ChatResponse response = await _chatClientAccessor.Current
+                .GetResponseAsync(messages, null, cancellationToken)
+                .ConfigureAwait(false);
+
+            return CleanTitle(response.Text, maxLength);
+        }
+        catch
+        {
+            // 标题只是锦上添花，失败时回退到首条消息截断
+            return null;
+        }
+    }
+
+    private static string? CleanTitle(string? text, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
+        string title = text.Trim();
+        title = title.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim() ?? string.Empty;
+        title = title.Trim('"', '\'', '“', '”', '‘', '’', '「', '」', '《', '》', '。', '，', ',', '.', ' ', '：', ':');
+        if (title.Length > maxLength)
+        {
+            title = title[..maxLength];
+        }
+
+        return string.IsNullOrWhiteSpace(title) ? null : title;
     }
 
     private static string BuildTitle(string userInput)

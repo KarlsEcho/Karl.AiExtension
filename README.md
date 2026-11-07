@@ -181,7 +181,9 @@ $env:KARL_AI_MODEL    = "deepseek-flash"
 - **默认存储**：`{程序目录}/chat/history/`，其中
   - `using.json`：未归档会话（启动时自动恢复为标签页）；
   - `store.json`：已归档会话（「归档当前」会移到这里，不再出现在标签里）。
-- **每轮对话自动保存**，首条消息自动生成会话标题；
+- **每轮对话自动保存**；**首轮结束后由 AI 总结一个会话标题**（失败时回退为首条消息截断）；
+  双击标签标题、或点「重命名」按钮可修改标题并持久化；
+- 关闭标签**不会丢记录**：可在顶部「打开会话」下拉里重新打开（已归档会话也在这个下拉里，选中会自动取消归档）；
 - 「删除当前」永久删除会话记录（弹窗确认）；
 - **存储目录可通过 DI 配置**：
 
@@ -195,6 +197,10 @@ services.AddAiExtensionWpf(options =>
 
     // 或者完全自定义存储实现（数据库/远端）：
     // options.ConversationStore = new MyConversationStore();
+
+    // 标题生成（默认开启，20 字以内；关闭后回退为首条消息截断）
+    // options.ChatOptions.AutoTitleFromFirstRound = false;
+    // options.ChatOptions.AutoTitleMaxLength = 20;
 });
 ```
 

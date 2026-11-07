@@ -28,4 +28,10 @@ public sealed class AiChatOptions
 
     /// <summary>单个请求里允许的最大工具调用轮次，防止模型死循环。</summary>
     public int MaxToolIterations { get; set; } = 8;
+
+    /// <summary>首轮对话结束后是否让 AI 生成会话标题（失败时回退为首条用户消息截断）。</summary>
+    public bool AutoTitleFromFirstRound { get; set; } = true;
+
+    /// <summary>AI 生成标题的最大字数。</summary>
+    public int AutoTitleMaxLength { get; set; } = 20;
 }
