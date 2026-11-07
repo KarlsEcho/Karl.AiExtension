@@ -30,24 +30,58 @@ public sealed class ChatSession
     private readonly McpServerBridge _bridge;
     private readonly IUiActivityTracker _activityTracker;
     private readonly AiChatOptions _options;
+    private readonly Conversation? _conversation;
+    private readonly IConversationStore? _store;
     private readonly List<ChatMessage> _history = new();
     private readonly SemaphoreSlim _turnGate = new(1, 1);
 
-    /// <summary>构造会话。</summary>
+    /// <summary>构造会话（不绑定持久化会话，兼容旧用法/Blazor 单会话）。</summary>
     public ChatSession(
         IAiChatClientAccessor chatClientAccessor,
         McpServerBridge bridge,
         IUiActivityTracker activityTracker,
         AiChatOptions options)
+        : this(chatClientAccessor, bridge, activityTracker, options, conversation: null, store: null)
+    {
+    }
+
+    /// <summary>构造绑定到某个 <see cref="Conversation"/> 的会话（多标签/子智能体用）。</summary>
+    public ChatSession(
+        IAiChatClientAccessor chatClientAccessor,
+        McpServerBridge bridge,
+        IUiActivityTracker activityTracker,
+        AiChatOptions options,
+        Conversation? conversation,
+        IConversationStore? store)
     {
         _chatClientAccessor = chatClientAccessor ?? throw new ArgumentNullException(nameof(chatClientAccessor));
         _bridge = bridge ?? throw new ArgumentNullException(nameof(bridge));
         _activityTracker = activityTracker ?? throw new ArgumentNullException(nameof(activityTracker));
         _options = options ?? throw new ArgumentNullException(nameof(options));
+        _conversation = conversation;
+        _store = store;
+
+        if (_conversation is not null)
+        {
+            LoadHistoryFromConversation(_conversation);
+        }
     }
 
     /// <summary>工具调用完成事件（UI 可订阅以实时刷新轨迹）。</summary>
     public event Action<AiToolCallTrace>? ToolCallCompleted;
+
+    /// <summary>绑定的会话 Id（未绑定时为 null）。</summary>
+    public string? ConversationId => _conversation?.Id;
+
+    /// <summary>绑定的会话标题（未绑定时为 null）。</summary>
+    public string? ConversationTitle => _conversation?.Title;
+
+    /// <summary>绑定的会话是否已归档。</summary>
+    public bool IsArchived => _conversation?.Archived ?? false;
+
+    /// <summary>已持久化的消息列表（仅展示用；未绑定会话时为空）。</summary>
+    public IReadOnlyList<ConversationMessage> ConversationMessages
+        => _conversation?.Messages ?? (IReadOnlyList<ConversationMessage>)Array.Empty<ConversationMessage>();
 
     /// <summary>历史消息条数。</summary>
     public int HistoryCount
@@ -67,6 +101,13 @@ public sealed class ChatSession
         lock (_history)
         {
             _history.Clear();
+        }
+
+        if (_conversation is not null)
+        {
+            _conversation.Messages.Clear();
+            _conversation.UpdatedAt = DateTimeOffset.Now;
+            _ = PersistSafeAsync();
         }
     }
 
@@ -152,6 +193,29 @@ public sealed class ChatSession
         {
             _history.Add(new ChatMessage(ChatRole.User, userInput));
             _history.Add(new ChatMessage(ChatRole.Assistant, finalText));
+        }
+
+        if (_conversation is not null)
+        {
+            DateTimeOffset now = DateTimeOffset.Now;
+            _conversation.Messages.Add(new ConversationMessage("user", userInput, now));
+            _conversation.Messages.Add(new ConversationMessage(
+                "assistant",
+                finalText,
+                now,
+                traces.Select(static trace => new ConversationToolCall(
+                    trace.ToolName,
+                    trace.ArgumentsJson,
+                    trace.Success,
+                    trace.ResultPreview,
+                    (long)trace.Duration.TotalMilliseconds)).ToArray()));
+            _conversation.UpdatedAt = now;
+            if (string.IsNullOrWhiteSpace(_conversation.Title) || _conversation.Title == "新对话")
+            {
+                _conversation.Title = BuildTitle(userInput);
+            }
+
+            await PersistSafeAsync(cancellationToken).ConfigureAwait(false);
         }
 
         _activityTracker.Record(
@@ -244,6 +308,82 @@ public sealed class ChatSession
 
     private static string Truncate(string value)
         => value.Length <= MaxPreviewLength ? value : value.Substring(0, MaxPreviewLength) + "…";
+
+    /// <summary>重命名当前会话（持久化）。</summary>
+    public async Task RenameAsync(string title, CancellationToken cancellationToken = default)
+    {
+        if (_conversation is null)
+        {
+            return;
+        }
+
+        _conversation.Title = string.IsNullOrWhiteSpace(title) ? "新对话" : title.Trim();
+        _conversation.UpdatedAt = DateTimeOffset.Now;
+        await PersistSafeAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>归档当前会话（移动到 store.json）。</summary>
+    public async Task ArchiveAsync(CancellationToken cancellationToken = default)
+    {
+        if (_conversation is null || _store is null)
+        {
+            return;
+        }
+
+        _conversation.Archived = true;
+        _conversation.UpdatedAt = DateTimeOffset.Now;
+        await _store.SaveAsync(_conversation, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>删除当前会话（两个存储文件里都移除）。</summary>
+    public async Task DeleteAsync(CancellationToken cancellationToken = default)
+    {
+        if (_conversation is null || _store is null)
+        {
+            return;
+        }
+
+        await _store.DeleteAsync(_conversation.Id, cancellationToken).ConfigureAwait(false);
+    }
+
+    private void LoadHistoryFromConversation(Conversation conversation)
+    {
+        foreach (ConversationMessage message in conversation.Messages)
+        {
+            ChatRole role = message.Role switch
+            {
+                "user" => ChatRole.User,
+                "assistant" => ChatRole.Assistant,
+                _ => ChatRole.System,
+            };
+
+            _history.Add(new ChatMessage(role, message.Text));
+        }
+    }
+
+    private async Task PersistSafeAsync(CancellationToken cancellationToken = default)
+    {
+        if (_conversation is null || _store is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _store.SaveAsync(_conversation, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            // 会话落盘失败不阻塞对话（界面仍可继续使用）
+            System.Diagnostics.Debug.WriteLine($"保存会话失败: {exception}");
+        }
+    }
+
+    private static string BuildTitle(string userInput)
+    {
+        string title = userInput.Trim().ReplaceLineEndings(" ");
+        return title.Length <= 30 ? title : title[..30] + "…";
+    }
 
     private string BuildSystemPrompt()
     {

@@ -1,0 +1,173 @@
+<UserControl x:Class="AI.Extension.WPF.Chat.ChatConversationView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:chat="clr-namespace:AI.Extension.WPF.Chat"
+             mc:Ignorable="d"
+             d:DesignHeight="700"
+             d:DesignWidth="440"
+             Background="#FFFFFF">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+
+        <DataTemplate x:Key="MessageTemplate" DataType="{x:Type chat:ChatMessageViewModel}">
+            <Border Margin="0,4" Padding="12,9" CornerRadius="10" MaxWidth="360">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="HorizontalAlignment" Value="Left" />
+                        <Setter Property="Background" Value="#F1F5F9" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsUser}" Value="True">
+                                <Setter Property="HorizontalAlignment" Value="Right" />
+                                <Setter Property="Background" Value="#DBEAFE" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <StackPanel>
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right"
+                                   Text="{Binding TimeText}"
+                                   FontSize="10"
+                                   Foreground="#94A3B8" />
+                        <TextBlock Text="{Binding Author}"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   Foreground="#475569" />
+                    </DockPanel>
+                    <TextBlock Text="{Binding Text}"
+                               TextWrapping="Wrap"
+                               FontSize="13"
+                               LineHeight="20"
+                               Margin="0,3,0,0"
+                               Foreground="#0F172A" />
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="ToolTraceTemplate">
+            <Border Margin="0,2" Padding="8,6" CornerRadius="6" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1">
+                <StackPanel>
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right"
+                                   Text="{Binding Duration.TotalMilliseconds, StringFormat={}{0:0} ms}"
+                                   FontSize="10"
+                                   Foreground="#94A3B8" />
+                        <TextBlock Text="{Binding ToolName}"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="#1E293B" />
+                    </DockPanel>
+                    <TextBlock Text="{Binding ArgumentsJson}"
+                               FontSize="10"
+                               Foreground="#64748B"
+                               TextWrapping="Wrap"
+                               MaxHeight="34" />
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- 顶部信息栏 -->
+        <Border Grid.Row="0" Background="#0F172A" Padding="14,10">
+            <StackPanel>
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Right"
+                               Text="{Binding Title}"
+                               Foreground="#93C5FD"
+                               FontSize="11"
+                               TextTrimming="CharacterEllipsis"
+                               MaxWidth="220" />
+                    <TextBlock Text="AI 助手"
+                               Foreground="#FFFFFF"
+                               FontSize="15"
+                               FontWeight="SemiBold" />
+                </DockPanel>
+                <TextBlock Text="{Binding StatusText}"
+                           Foreground="#94A3B8"
+                           FontSize="11"
+                           TextWrapping="Wrap"
+                           Margin="0,2,0,0" />
+                <TextBlock Text="{Binding ActiveModelText}"
+                           Foreground="#93C5FD"
+                           FontSize="10"
+                           TextWrapping="Wrap"
+                           Margin="0,2,0,0" />
+            </StackPanel>
+        </Border>
+
+        <!-- 消息列表 -->
+        <ScrollViewer x:Name="MessagesScroll"
+                      Grid.Row="1"
+                      Padding="12"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding Messages}"
+                          ItemTemplate="{StaticResource MessageTemplate}" />
+        </ScrollViewer>
+
+        <!-- 忙碌指示 -->
+        <ProgressBar Grid.Row="2"
+                     Height="3"
+                     IsIndeterminate="True"
+                     Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
+
+        <!-- 工具调用轨迹 -->
+        <Expander Grid.Row="3"
+                  Header="工具调用轨迹"
+                  Padding="12,6"
+                  BorderThickness="0"
+                  FontSize="12"
+                  Foreground="#334155">
+            <ScrollViewer MaxHeight="150" VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding ToolCalls}"
+                              ItemTemplate="{StaticResource ToolTraceTemplate}" />
+            </ScrollViewer>
+        </Expander>
+
+        <!-- 输入区 -->
+        <Border Grid.Row="4" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="12,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBox x:Name="InputBox"
+                         Grid.Column="0"
+                         Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}"
+                         PreviewKeyDown="InputBox_PreviewKeyDown"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         MaxHeight="90"
+                         MinHeight="38"
+                         VerticalContentAlignment="Center"
+                         Padding="8,6"
+                         FontSize="13"
+                         BorderBrush="#CBD5E1" />
+
+                <Button Grid.Column="1"
+                        Content="发送"
+                        Command="{Binding SendCommand}"
+                        Margin="8,0,0,0"
+                        Padding="16,8"
+                        Background="#2563EB"
+                        Foreground="White"
+                        BorderThickness="0"
+                        FontWeight="SemiBold"
+                        Cursor="Hand" />
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

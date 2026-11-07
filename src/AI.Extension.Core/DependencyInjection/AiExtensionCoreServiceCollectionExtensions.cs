@@ -85,6 +85,26 @@ public static class AiExtensionCoreServiceCollectionExtensions
             provider.GetRequiredService<IUiActivityTracker>(),
             provider.GetRequiredService<AiChatOptions>()));
 
+        // 会话存储：目录可在 AiExtensionOptions 配置，默认 {AppContext.BaseDirectory}/chat/history
+        services.TryAddSingleton<IConversationStore>(provider =>
+        {
+            AiExtensionOptions? facadeOptions = provider.GetService<AiExtensionOptions>();
+            if (facadeOptions?.ConversationStore is { } customStore)
+            {
+                return customStore;
+            }
+
+            return new JsonConversationStore(facadeOptions?.ConversationStorePath);
+        });
+
+        // 多标签/子智能体用：每个会话一个 ChatSession
+        services.TryAddSingleton<IChatSessionFactory>(provider => new ChatSessionFactory(
+            provider.GetRequiredService<IAiChatClientAccessor>(),
+            provider.GetRequiredService<McpServerBridge>(),
+            provider.GetRequiredService<IUiActivityTracker>(),
+            provider.GetRequiredService<AiChatOptions>(),
+            provider.GetRequiredService<IConversationStore>()));
+
         return services;
     }
 }

@@ -5,11 +5,12 @@ using AI.Extension.Mvvm;
 namespace AI.Extension.WPF.Chat;
 
 /// <summary>WPF 聊天面板的视图模型。</summary>
-public sealed class ChatPanelViewModel : ObservableObject
+public sealed class ChatPanelViewModel : ObservableObject, IDisposable
 {
     private readonly ChatSession _session;
     private readonly IUiDispatcher _uiDispatcher;
     private readonly IAiChatClientAccessor _chatClientAccessor;
+    private bool _disposed;
     private string _inputText = string.Empty;
     private bool _isBusy;
     private string _statusText = "就绪：可以问我「帮我统计一下订单情况」";
@@ -32,10 +33,30 @@ public sealed class ChatPanelViewModel : ObservableObject
         ClearCommand = new RelayCommand(_ => Clear());
 
         _session.ToolCallCompleted += OnToolCallCompleted;
+
+        // 恢复已持久化的历史消息（多标签/重启后可见）
+        foreach (ConversationMessage message in _session.ConversationMessages)
+        {
+            if (message.Role is "user" or "assistant")
+            {
+                Messages.Add(new ChatMessageViewModel(message.Role == "user", message.Text, message.Timestamp));
+            }
+        }
+
+        if (Messages.Count > 0)
+        {
+            StatusText = $"已恢复会话（{Messages.Count} 条消息）";
+        }
     }
 
     /// <summary>当前生效的模型（供应商 · 模型）。</summary>
     public string ActiveModelText => _chatClientAccessor.DisplayName;
+
+    /// <summary>当前会话对象（供多标签容器做归档/删除）。</summary>
+    public ChatSession Session => _session;
+
+    /// <summary>会话标题（首条用户消息自动生成，可持久化）。</summary>
+    public string Title => _session.ConversationTitle ?? "新对话";
 
     /// <summary>对话消息。</summary>
     public ObservableCollection<ChatMessageViewModel> Messages { get; } = new();
@@ -112,6 +133,7 @@ public sealed class ChatPanelViewModel : ObservableObject
         finally
         {
             IsBusy = false;
+            OnPropertyChanged(nameof(Title));
         }
     }
 
@@ -139,6 +161,19 @@ public sealed class ChatPanelViewModel : ObservableObject
         }
     }
 
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _chatClientAccessor.Changed -= OnChatClientChanged;
+        _session.ToolCallCompleted -= OnToolCallCompleted;
+    }
+
     private async void OnChatClientChanged(object? sender, EventArgs e)
     {
         try
@@ -155,3 +190,4 @@ public sealed class ChatPanelViewModel : ObservableObject
         }
     }
 }
+

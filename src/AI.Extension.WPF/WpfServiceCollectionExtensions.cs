@@ -27,6 +27,7 @@ public static class WpfServiceCollectionExtensions
         services.AddSingleton<IUiDispatcher, WpfUiDispatcher>();
 
         services.TryAddSingleton<ChatPanelViewModel>();
+        services.TryAddSingleton<ChatTabsViewModel>();
         services.TryAddSingleton<ProviderManagerViewModel>();
         services.TryAddSingleton<AiDiagnosticsViewModel>();
 

@@ -10,20 +10,22 @@ namespace Demo.View;
 public partial class MainWindow : Window
 {
     private readonly OrdersViewModel _orders;
+    private readonly ChatTabsViewModel _chatTabs;
 
     /// <summary>构造主窗口（依赖由 DI 注入）。</summary>
     public MainWindow(
         OrdersViewModel orders,
-        ChatPanelViewModel chat,
+        ChatTabsViewModel chatTabs,
         ProviderManagerViewModel providers,
         AiDiagnosticsViewModel diagnostics)
     {
         InitializeComponent();
 
         _orders = orders ?? throw new ArgumentNullException(nameof(orders));
+        _chatTabs = chatTabs ?? throw new ArgumentNullException(nameof(chatTabs));
         DataContext = orders;
 
-        ChatSurface.DataContext = chat;
+        ChatSurface.DataContext = chatTabs;
         ProvidersSurface.DataContext = providers;
         DiagnosticsSurface.DataContext = diagnostics;
 
@@ -34,5 +36,6 @@ public partial class MainWindow : Window
     {
         Loaded -= OnLoaded;
         await _orders.LoadAsync();
+        await _chatTabs.InitializeAsync();
     }
 }

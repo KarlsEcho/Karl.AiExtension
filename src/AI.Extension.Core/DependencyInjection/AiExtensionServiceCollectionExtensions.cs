@@ -36,6 +36,15 @@ public sealed class AiExtensionOptions
     /// <summary>供应商配置存储（测试/绿色版可传内存实现）；为空时用默认 JSON 存储。</summary>
     public IAiProviderStore? ProviderStore { get; set; }
 
+    /// <summary>
+    /// 会话存储目录：默认 <c>{AppContext.BaseDirectory}/chat/history</c>，
+    /// 其中 <c>using.json</c> 存未归档会话、<c>store.json</c> 存已归档会话。
+    /// </summary>
+    public string? ConversationStorePath { get; set; }
+
+    /// <summary>会话存储实现（测试/定制存储可传实例）；为空时使用 <see cref="JsonConversationStore"/>。</summary>
+    public IConversationStore? ConversationStore { get; set; }
+
     /// <summary>是否启用 MCP 工具；设置后框架会自动登记契约桥接、创建进程内 MCP Server 并注册工具。</summary>
     public Assembly? McpToolsAssembly { get; private set; }
 

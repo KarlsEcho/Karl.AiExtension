@@ -173,7 +173,34 @@ $env:KARL_AI_MODEL    = "deepseek-flash"
 
 未配置任何可用供应商时，`IChatClientAccessor` 会退回兜底客户端（`Demo.Core` 注入离线规则客户端），保证骨架永远可运行。
 
-### 3.5 Blazor 宿主
+### 3.5 会话管理（多标签 + 持久化）
+
+右侧「AI 对话」支持**多标签会话**：每个标签是独立上下文，可以同时和多个会话聊天；
+子智能体也能通过 `IChatSessionFactory` 各自创建会话（`CreateNew()` / `OpenAsync(id)`），与界面共用同一套存储。
+
+- **默认存储**：`{程序目录}/chat/history/`，其中
+  - `using.json`：未归档会话（启动时自动恢复为标签页）；
+  - `store.json`：已归档会话（「归档当前」会移到这里，不再出现在标签里）。
+- **每轮对话自动保存**，首条消息自动生成会话标题；
+- 「删除当前」永久删除会话记录（弹窗确认）；
+- **存储目录可通过 DI 配置**：
+
+```csharp
+services.AddAiExtensionWpf(options =>
+{
+    options.UseMcpToolsFrom(typeof(OrderTools).Assembly);
+
+    // 自定义会话存储目录（默认 {AppContext.BaseDirectory}/chat/history）
+    options.ConversationStorePath = @"D:\OpenWASO\chat\history";
+
+    // 或者完全自定义存储实现（数据库/远端）：
+    // options.ConversationStore = new MyConversationStore();
+});
+```
+
+> 程序目录不可写（如装在 Program Files）时请显式配置 `ConversationStorePath` 到可写目录。
+
+### 3.6 Blazor 宿主
 
 ```powershell
 dotnet run --project src/Demo.BlazorHost   # http://localhost:5180

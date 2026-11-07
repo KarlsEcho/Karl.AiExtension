@@ -5,10 +5,16 @@ public sealed class ChatMessageViewModel
 {
     /// <summary>构造消息。</summary>
     public ChatMessageViewModel(bool isUser, string text)
+        : this(isUser, text, DateTimeOffset.Now)
+    {
+    }
+
+    /// <summary>构造消息（可指定时间，用于恢复历史会话）。</summary>
+    public ChatMessageViewModel(bool isUser, string text, DateTimeOffset createdAt)
     {
         IsUser = isUser;
         Text = text ?? string.Empty;
-        CreatedAt = DateTimeOffset.Now;
+        CreatedAt = createdAt;
     }
 
     /// <summary>是否用户消息。</summary>
