@@ -13,22 +13,40 @@
 
 ---
 
-## 一次性准备（只需做一次）
+## 发布方式：Trusted Publishing（OIDC，无长期 API Key）
 
-### 1. 在 nuget.org 创建 API Key
+nuget.org 官方推荐方式：GitHub Actions 用 OIDC 短期 token 换取 **1 小时有效**的临时 API Key，仓库里不存任何发布密钥。
 
-1. 登录 nuget.org → 右上角用户名 → **API keys** → **Create**；
-2. **Key name**：例如 `Karl.AiExtension-CI`；
-3. **Scopes**：`Push` → `Push new packages and package versions`；
-4. **Glob pattern**：填 `AI.Extension.*`（只允许推这个前缀的包）；
-5. 创建后**立刻复制 Key**（只显示一次）。
+工作流：[`.github/workflows/publish-nuget.yml`](workflows/publish-nuget.yml)。
 
-### 2. 把 Key 加到 GitHub 仓库 Secret
+### 一次性准备
+
+#### 1. 在 nuget.org 创建 Trusted Publishing 策略
+
+登录 nuget.org → 头像 → **Trusted Publishing** → **Create**：
+
+| 字段 | 填什么 |
+| --- | --- |
+| Policy Name | 任意，例如 `Karl.AiExtension` |
+| Package Owner | 你的 nuget.org 用户名（例如 `karlsecho`） |
+| CI/CD Provider | `GitHub Actions` |
+| Repository Owner | **GitHub 账号名**（例如 `KarlsEcho`，注意不是昵称） |
+| Repository | 仓库名，例如 `Karl.AiExtension` |
+| Workflow File | **`publish-nuget.yml`**（只填文件名，不要带 `.github/workflows/`） |
+| Environment | 留空（workflow 没有配 environment） |
+| Select Scopes | 勾 `Push` → `Push new packages and package versions`；Glob pattern 填 `AI.Extension.*` |
+
+> 字段大小写不敏感，但 Repository Owner / Repository 必须和 GitHub 上一致，Workflow File 必须和工作流文件名一致。
+> 公开仓库创建的策略会立即生效；私有仓库可能先有 7 天临时激活期（官方文档有说明）。
+
+#### 2. 在 GitHub 添加 `NUGET_USER` Secret
 
 仓库 → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**：
 
-- Name：`NUGET_API_KEY`
-- Secret：粘贴上一步的 Key
+- Name：`NUGET_USER`
+- Value：nuget.org 的用户名（**不是邮箱**，例如 `karlsecho`）
+
+> 不需要 `NUGET_API_KEY`。临时 Key 由 `NuGet/login@v1` 在发布时动态获取。
 
 ---
 
@@ -41,14 +59,14 @@
 git status
 git push origin main
 
-# 2) 打 tag 并推送（会触发 .github/workflows/publish-nuget.yml）
+# 2) 打 tag 并推送（触发 Publish NuGet）
 git tag v0.1.0-beta.1
 git push origin v0.1.0-beta.1
 ```
 
-然后到仓库 **Actions → Publish NuGet** 看运行结果；成功后到 nuget.org 的个人包列表确认（索引有几分钟延迟）。
+然后到仓库 **Actions → Publish NuGet** 看运行结果；成功后到 nuget.org 的包列表确认（索引有几分钟延迟）。
 
-> NuGet 的版本**不可覆盖**：同一个版本号只能发布一次。发错了只能换新版本号（旧版本可在 nuget.org 上 Delist）。
+> NuGet 版本**不可覆盖**：同一个版本号只能发布一次。发错了只能换新版本号（旧版本可在 nuget.org 上 Delist）。
 
 ### 手动触发（不必须打 tag）
 
@@ -110,8 +128,10 @@ dotnet build
 
 | 现象 | 处理 |
 | --- | --- |
-| `403 Forbidden` / `401 Unauthorized` | Key 失效或没有 Push 权限；重新生成并更新 `NUGET_API_KEY` Secret |
+| `401/403` 或 OIDC 换取 Key 失败 | 检查 Trusted Publishing 策略：Repository Owner / Repository / Workflow File 是否与实际完全一致；`NUGET_USER` 是否是 nuget.org 用户名；workflow 是否声明了 `permissions: id-token: write` |
 | `409 Conflict` / 版本已存在 | NuGet 不允许覆盖；换新版本号重发 |
 | 包体积明显偏小、没生成器 | 检查 `AI.Extension.Abstractions` 包内是否有 `analyzers/dotnet/cs/*.dll`；确保 `dotnet pack` 前 Generator 已构建（项目已用 ProjectReference 保证） |
 | WPF 包引用后编译报缺少 ASP.NET Core | 包内已带 `frameworkReference Microsoft.AspNetCore.App`；若仍然报错，在宿主项目显式加 `<FrameworkReference Include="Microsoft.AspNetCore.App" />` |
 | Actions 不触发 | 确认 tag 形如 `v0.1.0-beta.1`，且 workflow 文件在 `main` 上；fork 仓库的 Actions 可能被禁用 |
+
+> 如果你更想用传统长期 API Key：nuget.org → API Keys 创建 Key，在 GitHub 加 `NUGET_API_KEY` Secret，并把 workflow 的 `NuGet/login` 步骤换回 `--api-key $env:NUGET_API_KEY`。当前仓库默认使用更安全的 OIDC 方式。

@@ -13,6 +13,8 @@ on:
 
 permissions:
   contents: read
+  # Trusted Publishing（OIDC）需要 GitHub 颁发短期 token
+  id-token: write
 
 concurrency:
   group: nuget-publish
@@ -63,15 +65,16 @@ jobs:
         shell: pwsh
         run: dotnet pack -c Release --no-build -o artifacts ${{ steps.version.outputs.arg }}
 
+      - name: NuGet login (OIDC → 临时 API Key)
+        uses: NuGet/login@v1
+        id: login
+        with:
+          # nuget.org 的用户名（profile name），不是邮箱；建议放仓库 Secret：NUGET_USER
+          user: ${{ secrets.NUGET_USER }}
+
       - name: Push to nuget.org
         shell: pwsh
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:NUGET_API_KEY)) {
-            throw "缺少仓库 Secret：NUGET_API_KEY（Settings → Secrets and variables → Actions）"
-          }
-
           $packages = @()
           $packages += Get-ChildItem artifacts/*.nupkg -ErrorAction SilentlyContinue
           $packages += Get-ChildItem artifacts/*.snupkg -ErrorAction SilentlyContinue
@@ -83,7 +86,7 @@ jobs:
           foreach ($package in $packages) {
             Write-Host "Pushing $($package.Name)"
             dotnet nuget push $package.FullName `
-              --api-key $env:NUGET_API_KEY `
+              --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" `
               --source https://api.nuget.org/v3/index.json `
               --skip-duplicate
 
