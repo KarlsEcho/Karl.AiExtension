@@ -87,6 +87,20 @@ Demo.MCP 引用 AI.Extension.Abstractions（编写绑定声明）与 AI.Extensio
 
 ---
 
+## 从 NuGet 安装（Beta）
+
+> 当前版本 `0.1.0-beta.1`。发布流程（API Key / Secret / 打 tag）见 [`docs/RELEASE.md`](docs/RELEASE.md)。
+
+```powershell
+dotnet add package AI.Extension.WPF --version 0.1.0-beta.1
+# 按需单独引用：AI.Extension.Core / AI.Extension.Abstractions / AI.Extension.Blazor
+```
+
+- `AI.Extension.WPF` 会传递依赖 `Core` / `Abstractions`；
+- `AI.Extension.Abstractions` 包内已内置 Roslyn 源生成器（`analyzers/dotnet/cs`），**不需要**再单独引用 Analyzer；
+- 注册方式不变：`services.AddAiExtensionWpf(options => ...)`；
+- WPF 包的「同进程 MCP 暴露」依赖 ASP.NET Core 共享框架（包已声明 `frameworkReference`；若宿主仍报缺失，加 `<FrameworkReference Include="Microsoft.AspNetCore.App" />`）。
+
 ## 3. 快速开始
 
 前置：.NET 10 SDK（本仓库用 10.0.402 验证）。
@@ -274,6 +288,8 @@ UI 的契约就是 public 的 ViewModel（`ChatTabsViewModel` / `ChatPanelViewMo
 - [`docs/ADOPTION.md`](docs/ADOPTION.md)：**把框架接入存量 WPF 项目的 6 步迁移指南**（含分阶段推进、常见坑、参考实现）
 - [`docs/MCP-HOSTS.md`](docs/MCP-HOSTS.md)：**把 MCP 层交给 Claude Code / CodeBuddy / WorkBuddy / Cursor 等 harness 使用**（stdio / HTTP 两种传输的配置与边界）
 - [`docs/UI.md`](docs/UI.md)：**自定义 AI UI**（整槽位替换 / 复制内置视图改造；为什么不做模板 key 层）
+- [`docs/RELEASE.md`](docs/RELEASE.md)：**NuGet 打包与发布**（包清单、nuget.org API Key、GitHub Secret、打 tag 自动发布、本地验证）
 - [`docs/BLAZOR.md`](docs/BLAZOR.md)：Blazor 分支如何复用同一套核心
+
 
 
