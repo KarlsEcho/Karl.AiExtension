@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using AI.Extension.Chat;
 using AI.Extension.Mvvm;
+using AI.Extension.WPF.Ui;
 
 namespace AI.Extension.WPF.Chat;
 
@@ -59,6 +60,9 @@ public sealed class ChatPanelViewModel : ObservableObject, IDisposable
 
     /// <summary>当前生效的模型（供应商 · 模型）。</summary>
     public string ActiveModelText => _chatClientAccessor.DisplayName;
+
+    /// <summary>视图工厂（由多标签容器注入，用于替换会话区域视图）。</summary>
+    public IAiViewFactory? ViewFactory { get; internal set; }
 
     /// <summary>当前会话对象（供多标签容器做归档/删除）。</summary>
     public ChatSession Session => _session;
@@ -295,4 +299,5 @@ public sealed class ChatPanelViewModel : ObservableObject, IDisposable
         }
     }
 }
+
 

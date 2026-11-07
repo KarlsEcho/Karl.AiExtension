@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using AI.Extension.Mvvm;
+using AI.Extension.WPF.Ui;
 using AI.Extension.Providers;
 
 namespace AI.Extension.WPF.Providers;
@@ -16,11 +17,15 @@ public sealed class ProviderManagerViewModel : ObservableObject
     private string _activeModelText;
 
     /// <summary>构造视图模型。</summary>
-    public ProviderManagerViewModel(IAiProviderManager manager, IUiDispatcher uiDispatcher)
+    public ProviderManagerViewModel(
+        IAiProviderManager manager,
+        IUiDispatcher uiDispatcher,
+        IAiViewFactory? viewFactory = null)
     {
         _manager = manager ?? throw new ArgumentNullException(nameof(manager));
         _uiDispatcher = uiDispatcher ?? throw new ArgumentNullException(nameof(uiDispatcher));
         _activeModelText = manager.ActiveModelLabel;
+        ViewFactory = viewFactory;
 
         AddCommand = new RelayCommand(_ => AddProvider());
         RemoveCommand = new AsyncRelayCommand(_ => RemoveAsync(), _ => SelectedProvider is not null);
@@ -54,6 +59,9 @@ public sealed class ProviderManagerViewModel : ObservableObject
             }
         }
     }
+
+    /// <summary>视图工厂（用于替换供应商面板视图；为空时用内置视图）。</summary>
+    public IAiViewFactory? ViewFactory { get; }
 
     /// <summary>当前生效模型（供应商 · 模型）。</summary>
     public string ActiveModelText
@@ -439,4 +447,6 @@ public sealed class ProviderItemViewModel : ObservableObject
         Notes = Notes,
     };
 }
+
+
 

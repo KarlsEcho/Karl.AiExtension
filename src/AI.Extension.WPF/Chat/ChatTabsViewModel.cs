@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Windows;
 using AI.Extension.Chat;
 using AI.Extension.Mvvm;
+using AI.Extension.WPF.Ui;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AI.Extension.WPF.Chat;
@@ -38,6 +39,7 @@ public sealed class ChatTabsViewModel : ObservableObject
 {
     private readonly IChatSessionFactory _sessionFactory;
     private readonly IServiceProvider _services;
+    private readonly IAiViewFactory? _viewFactory;
     private ChatPanelViewModel? _selectedTab;
     private ConversationChoice? _selectedConversation;
     private string _statusText = "正在加载会话…";
@@ -46,10 +48,14 @@ public sealed class ChatTabsViewModel : ObservableObject
     private bool _refreshRequested;
 
     /// <summary>构造标签视图模型。</summary>
-    public ChatTabsViewModel(IChatSessionFactory sessionFactory, IServiceProvider services)
+    public ChatTabsViewModel(
+        IChatSessionFactory sessionFactory,
+        IServiceProvider services,
+        IAiViewFactory? viewFactory = null)
     {
         _sessionFactory = sessionFactory ?? throw new ArgumentNullException(nameof(sessionFactory));
         _services = services ?? throw new ArgumentNullException(nameof(services));
+        _viewFactory = viewFactory;
 
         NewConversationCommand = new RelayCommand(_ => NewConversation());
         CloseTabCommand = new RelayCommand(CloseTab);
@@ -91,6 +97,9 @@ public sealed class ChatTabsViewModel : ObservableObject
             _ = OpenConversationAsync(value);
         }
     }
+
+    /// <summary>视图工厂（用于把会话区域替换为自定义视图；为空时用内置视图）。</summary>
+    public IAiViewFactory? ViewFactory => _viewFactory;
 
     /// <summary>状态栏文案（标签数量 / 可打开数量）。</summary>
     public string StatusText
@@ -263,6 +272,7 @@ public sealed class ChatTabsViewModel : ObservableObject
     private void AddTab(ChatSession session)
     {
         ChatPanelViewModel panel = ActivatorUtilities.CreateInstance<ChatPanelViewModel>(_services, session);
+        panel.ViewFactory = _viewFactory;
         panel.PropertyChanged += OnPanelPropertyChanged;
         Tabs.Add(panel);
     }
@@ -347,5 +357,6 @@ public sealed class ChatTabsViewModel : ObservableObject
         StatusText = $"{Tabs.Count} 个标签 · 可打开 {OpenableConversations.Count} 个（自动保存）";
     }
 }
+
 
 

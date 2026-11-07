@@ -2,13 +2,17 @@ using System.Collections.Specialized;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using AI.Extension.WPF.Ui;
 
 namespace AI.Extension.WPF.Chat;
 
 /// <summary>单个会话视图（消息列表 + 工具轨迹 + 输入框），由 <see cref="AiChatPanel"/> 的多标签容器承载。</summary>
-public partial class ChatConversationView : UserControl
+public partial class ChatConversationView : UserControl, IAiView<ChatPanelViewModel>
 {
     private bool _isImeComposing;
+
+    /// <inheritdoc />
+    public void Attach(ChatPanelViewModel viewModel) => DataContext = viewModel;
 
     /// <summary>构造视图。</summary>
     public ChatConversationView()
@@ -74,3 +78,4 @@ public partial class ChatConversationView : UserControl
         viewModel.SendCommand.Execute(null);
     }
 }
+

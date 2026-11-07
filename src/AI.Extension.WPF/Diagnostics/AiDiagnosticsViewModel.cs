@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Collections.ObjectModel;
 using AI.Extension.Mcp;
 using AI.Extension.Mvvm;
+using AI.Extension.WPF.Ui;
 using AI.Extension.WPF.Mcp;
 using ModelContextProtocol.Client;
 
@@ -35,18 +36,23 @@ public sealed class AiDiagnosticsViewModel : ObservableObject
         AiContractCatalog catalog,
         McpServerBridge bridge,
         IUiActivityTracker activityTracker,
-        IMcpHttpExposureService exposure)
+        IMcpHttpExposureService exposure,
+        IAiViewFactory? viewFactory = null)
     {
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _bridge = bridge ?? throw new ArgumentNullException(nameof(bridge));
         _activityTracker = activityTracker ?? throw new ArgumentNullException(nameof(activityTracker));
         _exposure = exposure ?? throw new ArgumentNullException(nameof(exposure));
+        ViewFactory = viewFactory;
 
         RefreshCommand = new RelayCommand(_ => Refresh());
         ToggleExposureCommand = new AsyncRelayCommand(_ => ToggleExposureAsync(), _ => !IsExposureBusy);
 
         Refresh();
     }
+
+    /// <summary>视图工厂（用于替换诊断面板视图；为空时用内置视图）。</summary>
+    public IAiViewFactory? ViewFactory { get; }
 
     /// <summary>契约清单。</summary>
     public ObservableCollection<ContractRow> Contracts { get; } = new();
@@ -190,4 +196,5 @@ public sealed class AiDiagnosticsViewModel : ObservableObject
         }
     }
 }
+
 

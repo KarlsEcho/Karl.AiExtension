@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:chat="clr-namespace:AI.Extension.WPF.Chat"
+             xmlns:ui="clr-namespace:AI.Extension.WPF.Ui"
              mc:Ignorable="d"
              d:DesignHeight="700"
              d:DesignWidth="440"
@@ -73,7 +74,7 @@
         </DataTemplate>
 
         <DataTemplate x:Key="TabContentTemplate">
-            <chat:ChatConversationView />
+            <ui:AiConversationHost />
         </DataTemplate>
     </UserControl.Resources>
 
@@ -155,4 +156,5 @@
                     Background="#FFFFFF" />
     </Grid>
 </UserControl>
+
 

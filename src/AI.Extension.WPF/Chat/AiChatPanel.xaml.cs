@@ -1,12 +1,16 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using AI.Extension.WPF.Ui;
 
 namespace AI.Extension.WPF.Chat;
 
 /// <summary>AI 对话外壳：多会话标签容器（每个标签是一个独立的 <see cref="ChatConversationView"/>）。</summary>
-public partial class AiChatPanel : UserControl
+public partial class AiChatPanel : UserControl, IAiView<ChatTabsViewModel>
 {
+    /// <inheritdoc />
+    public void Attach(ChatTabsViewModel viewModel) => DataContext = viewModel;
+
     /// <summary>构造面板。</summary>
     public AiChatPanel()
     {
@@ -56,3 +60,4 @@ public partial class AiChatPanel : UserControl
         }
     }
 }
+
