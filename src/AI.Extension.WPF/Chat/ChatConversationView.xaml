@@ -37,12 +37,22 @@
                                    FontWeight="SemiBold"
                                    Foreground="#475569" />
                     </DockPanel>
-                    <TextBlock Text="{Binding Text}"
-                               TextWrapping="Wrap"
-                               FontSize="13"
-                               LineHeight="20"
-                               Margin="0,3,0,0"
-                               Foreground="#0F172A" />
+                    <TextBox Text="{Binding Text, Mode=OneWay}"
+                             IsReadOnly="True"
+                             IsReadOnlyCaretVisible="False"
+                             IsTabStop="False"
+                             FocusVisualStyle="{x:Null}"
+                             BorderThickness="0"
+                             Background="Transparent"
+                             Padding="0"
+                             Margin="0,3,0,0"
+                             FontSize="13"
+                             Foreground="#0F172A"
+                             TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Disabled"
+                             HorizontalScrollBarVisibility="Disabled"
+                             Cursor="IBeam"
+                             ToolTip="可选中复制（Ctrl+C）" />
                 </StackPanel>
             </Border>
         </DataTemplate>
@@ -60,11 +70,22 @@
                                    FontWeight="SemiBold"
                                    Foreground="#1E293B" />
                     </DockPanel>
-                    <TextBlock Text="{Binding ArgumentsJson}"
-                               FontSize="10"
-                               Foreground="#64748B"
-                               TextWrapping="Wrap"
-                               MaxHeight="34" />
+                    <TextBox Text="{Binding ArgumentsJson, Mode=OneWay}"
+                             IsReadOnly="True"
+                             IsReadOnlyCaretVisible="False"
+                             IsTabStop="False"
+                             FocusVisualStyle="{x:Null}"
+                             BorderThickness="0"
+                             Background="Transparent"
+                             Padding="0"
+                             FontSize="10"
+                             Foreground="#64748B"
+                             TextWrapping="Wrap"
+                             MaxHeight="34"
+                             VerticalScrollBarVisibility="Disabled"
+                             HorizontalScrollBarVisibility="Disabled"
+                             Cursor="IBeam"
+                             ToolTip="可选中复制（Ctrl+C）" />
                 </StackPanel>
             </Border>
         </DataTemplate>
@@ -171,3 +192,4 @@
         </Border>
     </Grid>
 </UserControl>
+
