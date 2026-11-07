@@ -126,6 +126,8 @@ public class StreamingChatTests
 
         public string DisplayName => "测试模式";
 
+        public bool IsConfigured => true;
+
         public event EventHandler? Changed
         {
             add { }
@@ -225,3 +227,4 @@ public class StreamingChatTests
         }
     }
 }
+

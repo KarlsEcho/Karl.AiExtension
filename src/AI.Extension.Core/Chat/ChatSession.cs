@@ -560,7 +560,7 @@ public sealed class ChatSession
     /// <summary>首轮结束后让模型生成会话标题；失败/为空时返回 null（由调用方兜底）。</summary>
     private async Task<string?> TryGenerateTitleAsync(string userInput, string assistantReply, CancellationToken cancellationToken)
     {
-        if (!_options.AutoTitleFromFirstRound)
+        if (!_options.AutoTitleFromFirstRound || !_chatClientAccessor.IsConfigured)
         {
             return null;
         }
@@ -624,4 +624,6 @@ public sealed class ChatSession
             """;
     }
 }
+
+
 

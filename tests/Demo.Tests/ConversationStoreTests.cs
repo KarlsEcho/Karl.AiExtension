@@ -253,6 +253,8 @@ public class ConversationStoreTests
 
         public string DisplayName => "测试模式";
 
+        public bool IsConfigured => true;
+
         public event EventHandler? Changed
         {
             add { }
@@ -260,4 +262,5 @@ public class ConversationStoreTests
         }
     }
 }
+
 

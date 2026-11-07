@@ -15,6 +15,9 @@ public interface IAiChatClientAccessor
     /// <summary>当前模型展示文本，例如「DeepSeek · deepseek-chat」或「离线演示模式」。</summary>
     string DisplayName { get; }
 
+    /// <summary>是否已配置真实供应商/模型（未配置时不应让兜底客户端参与标题生成等附加请求）。</summary>
+    bool IsConfigured => true;
+
     /// <summary>当前模型发生变化。</summary>
     event EventHandler? Changed;
 }
@@ -63,6 +66,10 @@ public sealed class AiChatClientAccessor : IAiChatClientAccessor, IDisposable
             }
         }
     }
+
+    /// <inheritdoc />
+    public bool IsConfigured
+        => _providers.ActiveProvider is not null && _providers.ActiveModel is not null;
 
     /// <inheritdoc />
     public event EventHandler? Changed;
@@ -150,3 +157,4 @@ public sealed class AiChatClientAccessor : IAiChatClientAccessor, IDisposable
         _currentKey = null;
     }
 }
+

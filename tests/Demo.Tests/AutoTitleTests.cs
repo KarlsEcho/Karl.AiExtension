@@ -73,6 +73,31 @@ public class AutoTitleTests
         }
     }
 
+    [Fact]
+    public async Task 未配置供应商时_标题回退为首条消息()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), "karl-ai-title-tests", Guid.NewGuid().ToString("N"));
+        try
+        {
+            var store = new JsonConversationStore(directory);
+            var accessor = new FakeChatClientAccessor(new TitleFakeChatClient(), isConfigured: false);
+            var session = new ChatSession(
+                accessor,
+                new McpServerBridge(),
+                new UiActivityTracker(),
+                new AiChatOptions(),
+                new Conversation(),
+                store);
+
+            await session.SendAsync("帮我统计一下订单情况");
+
+            Assert.Equal("帮我统计一下订单情况", session.ConversationTitle);
+        }
+        finally
+        {
+            TryDeleteDirectory(directory);
+        }
+    }
     private static void TryDeleteDirectory(string directory)
     {
         try
@@ -92,14 +117,17 @@ public class AutoTitleTests
     {
         private readonly IChatClient _client;
 
-        public FakeChatClientAccessor(IChatClient client)
+        public FakeChatClientAccessor(IChatClient client, bool isConfigured = true)
         {
             _client = client;
+            IsConfigured = isConfigured;
         }
 
         public IChatClient Current => _client;
 
         public string DisplayName => "测试模式";
+
+        public bool IsConfigured { get; }
 
         public event EventHandler? Changed
         {
@@ -136,3 +164,4 @@ public class AutoTitleTests
         }
     }
 }
+

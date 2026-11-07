@@ -11,6 +11,21 @@ public partial class AiChatPanel : UserControl
     public AiChatPanel()
     {
         InitializeComponent();
+        Loaded += OnLoaded;
+        DataContextChanged += OnDataContextChanged;
+    }
+
+    private void OnLoaded(object sender, RoutedEventArgs e) => TryInitialize();
+
+    private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e) => TryInitialize();
+
+    private void TryInitialize()
+    {
+        if (IsLoaded && DataContext is ChatTabsViewModel tabs)
+        {
+            // 幂等：宿主不调用 InitializeAsync 时也能自动加载已有会话
+            _ = tabs.InitializeAsync();
+        }
     }
 
     private void TitleEditBox_Loaded(object sender, RoutedEventArgs e)
