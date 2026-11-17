@@ -81,6 +81,7 @@ AI 消息默认用内置 `MarkdownMessageView` 渲染（MdXaml → FlowDocument 
 - 保留选中复制（RichTextBox 原生），流式追加按 120ms 节流刷新；
 - 安全策略：不执行原始 HTML、远程图片不自动加载、链接只允许 `http/https`；
 - 自己的视图里也可以直接复用 `<chat:MarkdownMessageView Markdown="{Binding Text}" />`。
+- sk_user 选择卡片由 ChatMessageViewModel.CreateChoice(...) 生成，内置模板已包含选项按钮与自由输入；自定义消息模板时复用这个 VM 即可。
 
 ---
 
@@ -99,4 +100,5 @@ AI 消息默认用内置 `MarkdownMessageView` 渲染（MdXaml → FlowDocument 
 - 每个模板 key 都会变成对外承诺的公共 API，改 key/模板结构就是 breaking change；
 - WPF 原生已有 `DataTemplate`/`Style`/`ControlTemplate` 机制，宿主在自己的 `App.xaml` 里覆盖内置控件样式即可，不需要框架再包一层；
 - 对框架来说，**少一层抽象 = 少一份维护和版本负担**。
+
 

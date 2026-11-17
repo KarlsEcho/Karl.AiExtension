@@ -61,12 +61,15 @@
                                     <DataTrigger Binding="{Binding IsUser}" Value="True">
                                         <Setter Property="Visibility" Value="Visible" />
                                     </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsChoiceRequest}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </TextBox.Style>
                     </TextBox>
 
-                    <!-- PoC：AI 消息用 Markdown 渲染（用户消息保持纯文本） -->
+                    <!-- AI 消息用 Markdown 渲染（用户消息保持纯文本） -->
                     <chat:MarkdownMessageView Markdown="{Binding Text}"
                                               Margin="0,3,0,0"
                                               Rendered="MarkdownMessageView_Rendered">
@@ -77,10 +80,98 @@
                                     <DataTrigger Binding="{Binding IsUser}" Value="True">
                                         <Setter Property="Visibility" Value="Collapsed" />
                                     </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsChoiceRequest}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </chat:MarkdownMessageView.Style>
                     </chat:MarkdownMessageView>
+
+                    <!-- 内置 ask_user 工具的选择卡片 -->
+                    <StackPanel Margin="0,4,0,0">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsChoiceRequest}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+
+                        <TextBlock Text="{Binding ChoiceQuestion}"
+                                   TextWrapping="Wrap"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"
+                                   Foreground="#0F172A" />
+
+                        <StackPanel>
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsChoiceResolved}" Value="True">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+
+                            <ItemsControl ItemsSource="{Binding ChoiceOptions}" Margin="0,4,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Content="{Binding}"
+                                                HorizontalAlignment="Left"
+                                                HorizontalContentAlignment="Left"
+                                                Margin="0,2,0,0"
+                                                Padding="10,4"
+                                                Command="{Binding DataContext.SelectChoiceCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding AllowChoiceFreeText}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <TextBox Width="200"
+                                         Padding="4,3"
+                                         Text="{Binding ChoiceFreeText, UpdateSourceTrigger=PropertyChanged}"
+                                         ToolTip="输入自定义答案" />
+                                <Button Content="确定"
+                                        Margin="6,0,0,0"
+                                        Padding="10,4"
+                                        Command="{Binding SubmitChoiceCommand}" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <TextBlock Text="{Binding ChoiceResultText}"
+                                   Margin="0,6,0,0"
+                                   TextWrapping="Wrap"
+                                   FontSize="12"
+                                   Foreground="#475569">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsChoiceResolved}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
                 </StackPanel>
             </Border>
         </DataTemplate>

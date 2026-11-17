@@ -11,6 +11,7 @@ public sealed class ChatPanelViewModel : ObservableObject, IDisposable
     private readonly ChatSession _session;
     private readonly IUiDispatcher _uiDispatcher;
     private readonly IAiChatClientAccessor _chatClientAccessor;
+    private readonly Func<AiAskUserRequest, CancellationToken, Task<AiAskUserResult>> _userInputHandler;
     private bool _disposed;
     private string _inputText = string.Empty;
     private bool _isBusy;
@@ -42,6 +43,10 @@ public sealed class ChatPanelViewModel : ObservableObject, IDisposable
 
         _session.ToolCallCompleted += OnToolCallCompleted;
         _session.TitleChanged += OnTitleChanged;
+
+        // 内置 ask_user 工具：由当前会话面板负责弹选择卡片
+        _userInputHandler = RequestUserInputAsync;
+        _session.UserInputHandler = _userInputHandler;
 
         // 恢复已持久化的历史消息（多标签/重启后可见）
         foreach (ConversationMessage message in _session.ConversationMessages)
@@ -269,6 +274,66 @@ public sealed class ChatPanelViewModel : ObservableObject, IDisposable
         }
     }
 
+    private async Task<AiAskUserResult> RequestUserInputAsync(
+        AiAskUserRequest request,
+        CancellationToken cancellationToken)
+    {
+        var completion = new TaskCompletionSource<AiAskUserResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = ShowChoiceAsync(request, completion, cancellationToken);
+        return await completion.Task.ConfigureAwait(true);
+    }
+
+    private async Task ShowChoiceAsync(
+        AiAskUserRequest request,
+        TaskCompletionSource<AiAskUserResult> completion,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _uiDispatcher.InvokeAsync(() =>
+            {
+                if (_disposed)
+                {
+                    completion.TrySetResult(AiAskUserResult.UnavailableResult);
+                    return Task.CompletedTask;
+                }
+
+                ChatMessageViewModel message = ChatMessageViewModel.CreateChoice(request, result =>
+                {
+                    if (completion.TrySetResult(result))
+                    {
+                        StatusText = result.Cancelled ? "已取消选择" : "已收到选择，AI 继续生成…";
+                    }
+                });
+
+                Messages.Add(message);
+                StatusText = "等待用户选择…";
+
+                CancellationTokenRegistration registration = cancellationToken.Register(() =>
+                {
+                    completion.TrySetCanceled(cancellationToken);
+                    _ = _uiDispatcher.InvokeAsync(() =>
+                    {
+                        message.CancelChoice();
+                        return Task.CompletedTask;
+                    });
+                });
+
+                _ = completion.Task.ContinueWith(
+                    _ => registration.Dispose(),
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
+
+                return Task.CompletedTask;
+            }).ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            completion.TrySetException(exception);
+        }
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {
@@ -281,6 +346,11 @@ public sealed class ChatPanelViewModel : ObservableObject, IDisposable
         _chatClientAccessor.Changed -= OnChatClientChanged;
         _session.ToolCallCompleted -= OnToolCallCompleted;
         _session.TitleChanged -= OnTitleChanged;
+
+        if (ReferenceEquals(_session.UserInputHandler, _userInputHandler))
+        {
+            _session.UserInputHandler = null;
+        }
     }
 
     private async void OnChatClientChanged(object? sender, EventArgs e)

@@ -89,10 +89,10 @@ Demo.MCP 引用 AI.Extension.Abstractions（编写绑定声明）与 AI.Extensio
 
 ## 从 NuGet 安装（Beta）
 
-> 当前版本 `0.3.0-beta.1`。发布流程（Trusted Publishing / 打 tag）见 [.github/RELEASING.md](.github/RELEASING.md)。
+> 当前版本 `0.4.0-beta.1`。发布流程（Trusted Publishing / 打 tag）见 [.github/RELEASING.md](.github/RELEASING.md)。
 
 ```powershell
-dotnet add package Karl.AIExtension.WPF --version 0.3.0-beta.1
+dotnet add package Karl.AIExtension.WPF --version 0.4.0-beta.1
 # 按需单独引用：Karl.AIExtension.Core / Karl.AIExtension.Abstractions / Karl.AIExtension.Blazor
 ```
 
@@ -260,6 +260,28 @@ AI 消息默认按 Markdown 渲染（标题、列表、行内代码、围栏代�
 - **依赖**：WPF 包内置 `MdXaml`（MIT）+ `AvalonEdit`，宿主无需额外配置；
 - **自定义**：内置 `MarkdownMessageView` 可在自己的视图里复用；只想换消息区仍可用 `UseConversation<TView>()`。
 
+### 3.9 AI 向用户提问（内置 `ask_user`）
+
+模型需要用户做选择或补充关键信息时，可调用框架内置工具 `ask_user`：
+
+- 工具定义由框架注入，**不需要注册成 MCP 工具**，也不需要外部宿主参与；
+- WPF 内置在对话流里渲染选择卡片（选项按钮 + 可选自由输入）；
+- 用户选择会作为工具结果回灌给模型，对话自动继续；
+- 宿主没提供交互 UI 时，模型会收到“当前宿主不支持交互”，自行继续回答。
+
+自定义宿主可以实现交互（例如 Blazor/控制台）：
+
+```csharp
+session.UserInputHandler = async (request, cancellationToken) =>
+{
+    // request.Question / request.Options / request.AllowFreeText
+    string selected = await AskOnYourUiAsync(request);
+    return new AiAskUserResult(selected, null, Cancelled: false);
+};
+```
+
+> 安全边界：选项最多 8 个；问题/选项只做展示，不执行任何代码；`ask_user` 不会暴露给外部 MCP 客户端。
+
 ## 4. 新增一个 AI 能力（5 步）
 
 以「客户管理」为例：
@@ -299,6 +321,8 @@ AI 消息默认按 Markdown 渲染（标题、列表、行内代码、围栏代�
 - [`docs/UI.md`](docs/UI.md)：**自定义 AI UI**（整槽位替换 / 复制内置视图改造；为什么不做模板 key 层）
 - [.github/RELEASING.md](.github/RELEASING.md)：**NuGet 打包与发布**（包清单、Trusted Publishing 策略、打 tag 自动发布、本地验证）
 - [`docs/BLAZOR.md`](docs/BLAZOR.md)：Blazor 分支如何复用同一套核心
+
+
 
 
 

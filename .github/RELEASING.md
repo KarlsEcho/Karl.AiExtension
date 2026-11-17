@@ -52,7 +52,7 @@ nuget.org 官方推荐方式：GitHub Actions 用 OIDC 短期 token 换取 **1 �
 
 ## 发布流程（推荐：打 tag 自动发）
 
-版本号从 tag 解析：`v0.3.0-beta.1` → `0.3.0-beta.1`。
+版本号从 tag 解析：`v0.4.0-beta.1` → `0.4.0-beta.1`。
 
 ```powershell
 # 1) 确保 main 干净且已推送
@@ -60,8 +60,8 @@ git status
 git push origin main
 
 # 2) 打 tag 并推送（触发 Publish NuGet）
-git tag v0.3.0-beta.1
-git push origin v0.3.0-beta.1
+git tag v0.4.0-beta.1
+git push origin v0.4.0-beta.1
 ```
 
 然后到仓库 **Actions → Publish NuGet** 看运行结果；成功后到 nuget.org 的包列表确认（索引有几分钟延迟）。
@@ -92,7 +92,7 @@ Get-ChildItem artifacts   # 应看到 4 个 .nupkg + 4 个 .snupkg
 
 ```powershell
 Add-Type -AssemblyName System.IO.Compression.FileSystem
-$zip = [System.IO.Compression.ZipFile]::OpenRead('artifacts\Karl.AIExtension.Abstractions.0.3.0-beta.1.nupkg')
+$zip = [System.IO.Compression.ZipFile]::OpenRead('artifacts\Karl.AIExtension.Abstractions.0.4.0-beta.1.nupkg')
 $zip.Entries.FullName | Where-Object { $_ -notmatch '^_rels|^\[Content_Types\]|^package/' }
 $zip.Dispose()
 ```
@@ -108,7 +108,7 @@ $zip.Dispose()
 
 ```powershell
 # 新建一个 WPF 工程，NuGet.config 里加本地源 artifacts
-dotnet add package Karl.AIExtension.WPF --version 0.3.0-beta.1
+dotnet add package Karl.AIExtension.WPF --version 0.4.0-beta.1
 dotnet build
 ```
 
@@ -116,7 +116,7 @@ dotnet build
 
 ## 版本号约定
 
-- 预览：`0.3.0-beta.1`、`0.1.0-beta.2`…
+- 预览：`0.4.0-beta.1`、`0.1.0-beta.2`…
 - 正式：`0.1.0`、`0.2.0`…
 - 破坏性变更升 minor（0.x 阶段），并更新 README/`docs`。
 
@@ -132,8 +132,9 @@ dotnet build
 | `409 Conflict` / 版本已存在 | NuGet 不允许覆盖；换新版本号重发 |
 | 包体积明显偏小、没生成器 | 检查 `Karl.AIExtension.Abstractions` 包内是否有 `analyzers/dotnet/cs/*.dll`；确保 `dotnet pack` 前 Generator 已构建（项目已用 ProjectReference 保证） |
 | WPF 包引用后编译报缺少 ASP.NET Core | 包内已带 `frameworkReference Microsoft.AspNetCore.App`；若仍然报错，在宿主项目显式加 `<FrameworkReference Include="Microsoft.AspNetCore.App" />` |
-| Actions 不触发 | 确认 tag 形如 `v0.3.0-beta.1`，且 workflow 文件在 `main` 上；fork 仓库的 Actions 可能被禁用 |
+| Actions 不触发 | 确认 tag 形如 `v0.4.0-beta.1`，且 workflow 文件在 `main` 上；fork 仓库的 Actions 可能被禁用 |
 
 > 如果你更想用传统长期 API Key：nuget.org → API Keys 创建 Key，在 GitHub 加 `NUGET_API_KEY` Secret，并把 workflow 的 `NuGet/login` 步骤换回 `--api-key $env:NUGET_API_KEY`。当前仓库默认使用更安全的 OIDC 方式。
+
 
 

@@ -17,7 +17,7 @@ public sealed class AiChatOptions
         1. 需要查询/修改数据时优先调用工具，不要凭空编造业务数据；
         2. 工具返回失败时，先根据错误原因自我纠正（例如修正参数）再重试，最多重试一次；
         3. 涉及删除、取消等破坏性操作时，先向用户确认意图；
-        4. 回答使用简体中文，简洁、给出关键数据，不要输出工具调用的原始 JSON。
+        4. 回答使用简体中文，简洁、给出关键数据，不要输出工具调用的原始 JSON；\r\n        5. 需要用户做选择或补充关键信息时，调用 ask_user 工具让用户在界面上选择，不要自行假设用户的选择。
         """;
 
     /// <summary>系统提示词。</summary>
@@ -35,3 +35,4 @@ public sealed class AiChatOptions
     /// <summary>AI 生成标题的最大字数。</summary>
     public int AutoTitleMaxLength { get; set; } = 20;
 }
+

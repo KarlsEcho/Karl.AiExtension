@@ -20,11 +20,20 @@ namespace AI.Extension.Chat;
 public sealed class ChatSession
 {
     private const int MaxPreviewLength = 400;
+    private const string AskUserToolName = "ask_user";
 
     private static readonly JsonSerializerOptions TraceJsonOptions = new()
     {
         WriteIndented = false,
     };
+
+    private static readonly JsonSerializerOptions AskUserJsonOptions = new(JsonSerializerDefaults.Web);
+
+    /// <summary>内置 ask_user 工具定义（执行时由 ChatSession 拦截，不走 MCP）。</summary>
+    private static readonly AIFunction AskUserTool = AIFunctionFactory.Create(
+        static (string question, string[] options, bool allowFreeText) => "{}",
+        name: AskUserToolName,
+        description: "需要用户做选择或补充关键信息时调用。question 是要问用户的问题；options 是候选项数组（可为空）；allowFreeText 表示是否允许用户自由输入。调用后界面会等待用户选择，工具返回用户的选择结果。");
 
     private readonly IAiChatClientAccessor _chatClientAccessor;
     private readonly McpServerBridge _bridge;
@@ -75,6 +84,12 @@ public sealed class ChatSession
 
     /// <summary>流式文本增量（仅 <see cref="SendStreamingAsync"/> 触发）。</summary>
     public event Action<string>? TextDelta;
+
+    /// <summary>
+    /// 内置 <c>ask_user</c> 工具的用户交互回调（由 UI 宿主提供）。
+    /// 为空时模型会收到“当前宿主不支持交互”的结果。
+    /// </summary>
+    public Func<AiAskUserRequest, CancellationToken, Task<AiAskUserResult>>? UserInputHandler { get; set; }
 
     /// <summary>绑定的会话 Id（未绑定时为 null）。</summary>
     public string? ConversationId => _conversation?.Id;
@@ -170,7 +185,7 @@ public sealed class ChatSession
 
             var chatOptions = new ChatOptions
             {
-                Tools = _bridge.Tools.Cast<AITool>().ToList(),
+                Tools = BuildTools(),
                 ToolMode = ChatToolMode.Auto,
             };
 
@@ -235,7 +250,7 @@ public sealed class ChatSession
 
             var chatOptions = new ChatOptions
             {
-                Tools = _bridge.Tools.Cast<AITool>().ToList(),
+                Tools = BuildTools(),
                 ToolMode = ChatToolMode.Auto,
             };
 
@@ -403,11 +418,119 @@ public sealed class ChatSession
             traces.Count == 0 ? null : string.Join(" → ", traces.Select(static trace => trace.ToolName)));
     }
 
+    private List<AITool> BuildTools()
+    {
+        var tools = _bridge.Tools
+            .Where(static tool => !string.Equals(tool.Name, AskUserToolName, StringComparison.Ordinal))
+            .Cast<AITool>()
+            .ToList();
+        tools.Add(AskUserTool);
+        return tools;
+    }
+
+    private async Task<AiToolCallTrace> InvokeAskUserAsync(
+        FunctionCallContent call,
+        string argumentsJson,
+        CancellationToken cancellationToken)
+    {
+        var stopwatch = Stopwatch.StartNew();
+
+        AiAskUserRequest request;
+        try
+        {
+            request = ParseAskUserRequest(call);
+        }
+        catch (Exception exception)
+        {
+            stopwatch.Stop();
+            return new AiToolCallTrace(
+                AskUserToolName,
+                argumentsJson,
+                Success: false,
+                ResultPreview: $"ask_user 参数无效：{exception.Message}",
+                Duration: stopwatch.Elapsed);
+        }
+
+        Func<AiAskUserRequest, CancellationToken, Task<AiAskUserResult>>? handler = UserInputHandler;
+        if (handler is null)
+        {
+            stopwatch.Stop();
+            return new AiToolCallTrace(
+                AskUserToolName,
+                argumentsJson,
+                Success: false,
+                ResultPreview: AiAskUserResult.UnavailableResult.ToDisplayText(),
+                Duration: stopwatch.Elapsed);
+        }
+
+        try
+        {
+            AiAskUserResult result = await handler(request, cancellationToken).ConfigureAwait(false);
+            stopwatch.Stop();
+            return new AiToolCallTrace(
+                AskUserToolName,
+                argumentsJson,
+                Success: !result.Cancelled && !result.Unavailable,
+                ResultPreview: result.ToDisplayText(),
+                Duration: stopwatch.Elapsed);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            stopwatch.Stop();
+            return new AiToolCallTrace(
+                AskUserToolName,
+                argumentsJson,
+                Success: false,
+                ResultPreview: exception.Message,
+                Duration: stopwatch.Elapsed);
+        }
+    }
+
+    private static AiAskUserRequest ParseAskUserRequest(FunctionCallContent call)
+    {
+        string json = call.Arguments is null
+            ? "{}"
+            : JsonSerializer.Serialize(call.Arguments, TraceJsonOptions);
+
+        AskUserArguments? args = JsonSerializer.Deserialize<AskUserArguments>(json, AskUserJsonOptions);
+        string question = args?.Question?.Trim() ?? string.Empty;
+        if (question.Length == 0)
+        {
+            throw new ArgumentException("question 不能为空。");
+        }
+
+        string[] options = (args?.Options ?? Array.Empty<string>())
+            .Where(static option => !string.IsNullOrWhiteSpace(option))
+            .Select(static option => option.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .Take(8)
+            .ToArray();
+
+        bool allowFreeText = args?.AllowFreeText ?? false;
+        if (options.Length == 0 && !allowFreeText)
+        {
+            throw new ArgumentException("options 和 allowFreeText 至少要提供一个。");
+        }
+
+        return new AiAskUserRequest(question, options, allowFreeText);
+    }
+
+    private sealed record AskUserArguments(string? Question, string[]? Options, bool? AllowFreeText);
+
     private async Task<AiToolCallTrace> InvokeToolAsync(FunctionCallContent call, CancellationToken cancellationToken)
     {
         string argumentsJson = call.Arguments is null
             ? "{}"
             : JsonSerializer.Serialize(call.Arguments, TraceJsonOptions);
+
+        if (string.Equals(call.Name, AskUserToolName, StringComparison.Ordinal))
+        {
+            return await InvokeAskUserAsync(call, argumentsJson, cancellationToken).ConfigureAwait(false);
+        }
 
         McpClientTool? tool = _bridge.Tools.FirstOrDefault(
             candidate => string.Equals(candidate.Name, call.Name, StringComparison.Ordinal));
@@ -624,6 +747,7 @@ public sealed class ChatSession
             """;
     }
 }
+
 
 
 
