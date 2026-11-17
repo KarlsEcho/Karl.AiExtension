@@ -50,6 +50,12 @@ public partial class ChatConversationView : UserControl, IAiView<ChatPanelViewMo
         MessagesScroll?.ScrollToEnd();
     }
 
+    private void MarkdownMessageView_Rendered(object? sender, EventArgs e)
+    {
+        // Markdown 节流渲染完成后保持滚动到底部
+        MessagesScroll?.ScrollToEnd();
+    }
+
     private void OnCompositionStart(object sender, TextCompositionEventArgs e) => _isImeComposing = true;
 
     private void OnCompositionCommitted(object sender, TextCompositionEventArgs e) => _isImeComposing = false;

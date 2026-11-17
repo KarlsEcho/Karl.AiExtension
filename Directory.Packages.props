@@ -32,6 +32,10 @@
     <PackageVersion Include="Microsoft.AspNetCore.Components.Web" Version="10.0.13" />
   </ItemGroup>
 
+  <ItemGroup Label="Markdown">
+    <PackageVersion Include="MdXaml" Version="1.27.0" />
+  </ItemGroup>
+
   <ItemGroup Label="Build">
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="1.1.1" />
   </ItemGroup>
@@ -44,3 +48,4 @@
   </ItemGroup>
 
 </Project>
+

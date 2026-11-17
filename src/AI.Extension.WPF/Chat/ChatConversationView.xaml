@@ -53,7 +53,34 @@
                              HorizontalScrollBarVisibility="Disabled"
                              Cursor="IBeam"
                              TextChanged="MessageTextBox_TextChanged"
-                             ToolTip="可选中复制（Ctrl+C）" />
+                             ToolTip="可选中复制（Ctrl+C）">
+                        <TextBox.Style>
+                            <Style TargetType="TextBox">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsUser}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBox.Style>
+                    </TextBox>
+
+                    <!-- PoC：AI 消息用 Markdown 渲染（用户消息保持纯文本） -->
+                    <chat:MarkdownMessageView Markdown="{Binding Text}"
+                                              Margin="0,3,0,0"
+                                              Rendered="MarkdownMessageView_Rendered">
+                        <chat:MarkdownMessageView.Style>
+                            <Style TargetType="chat:MarkdownMessageView">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsUser}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </chat:MarkdownMessageView.Style>
+                    </chat:MarkdownMessageView>
                 </StackPanel>
             </Border>
         </DataTemplate>

@@ -15,12 +15,19 @@
 
   <ItemGroup>
     <PackageReference Include="ModelContextProtocol.AspNetCore" />
+    <PackageReference Include="MdXaml" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\AI.Extension.Core\AI.Extension.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Demo.Tests" />
+  </ItemGroup>
+
 </Project>
+
+
 
 

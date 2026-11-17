@@ -89,10 +89,10 @@ Demo.MCP 引用 AI.Extension.Abstractions（编写绑定声明）与 AI.Extensio
 
 ## 从 NuGet 安装（Beta）
 
-> 当前版本 `0.2.0-beta.1`。发布流程（Trusted Publishing / 打 tag）见 [.github/RELEASING.md](.github/RELEASING.md)。
+> 当前版本 `0.3.0-beta.1`。发布流程（Trusted Publishing / 打 tag）见 [.github/RELEASING.md](.github/RELEASING.md)。
 
 ```powershell
-dotnet add package Karl.AIExtension.WPF --version 0.2.0-beta.1
+dotnet add package Karl.AIExtension.WPF --version 0.3.0-beta.1
 # 按需单独引用：Karl.AIExtension.Core / Karl.AIExtension.Abstractions / Karl.AIExtension.Blazor
 ```
 
@@ -251,6 +251,15 @@ UI 的契约就是 public 的 ViewModel（`ChatTabsViewModel` / `ChatPanelViewMo
 框架不再提供「模板 key / 局部模板替换」层：WPF 原生的 `DataTemplate` / `Style` 覆盖已经够用，少一层抽象少一份维护负担。
 完整说明与示例见 [`docs/UI.md`](docs/UI.md)。
 
+### 3.8 Markdown 渲染
+
+AI 消息默认按 Markdown 渲染（标题、列表、行内代码、围栏代码块、表格、引用），用户消息保持纯文本；选中复制、流式追加、自动滚动都已接好。
+
+- **安全**：不执行原始 HTML；远程图片不会自动加载（替换为提示文本）；链接只允许 `http/https`，用系统浏览器打开；
+- **流式**：120ms 节流重渲染，避免每个 token 都重排；
+- **依赖**：WPF 包内置 `MdXaml`（MIT）+ `AvalonEdit`，宿主无需额外配置；
+- **自定义**：内置 `MarkdownMessageView` 可在自己的视图里复用；只想换消息区仍可用 `UseConversation<TView>()`。
+
 ## 4. 新增一个 AI 能力（5 步）
 
 以「客户管理」为例：
@@ -290,6 +299,7 @@ UI 的契约就是 public 的 ViewModel（`ChatTabsViewModel` / `ChatPanelViewMo
 - [`docs/UI.md`](docs/UI.md)：**自定义 AI UI**（整槽位替换 / 复制内置视图改造；为什么不做模板 key 层）
 - [.github/RELEASING.md](.github/RELEASING.md)：**NuGet 打包与发布**（包清单、Trusted Publishing 策略、打 tag 自动发布、本地验证）
 - [`docs/BLAZOR.md`](docs/BLAZOR.md)：Blazor 分支如何复用同一套核心
+
 
 
 
