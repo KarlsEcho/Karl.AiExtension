@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.2 (2026-11-27)
+
+- **net48 强名称解析兜底**：新增 `AiNet48Compatibility.EnsureAssemblyResolver()` 与模块初始化自动安装，
+  解决老式 .NET Framework 宿主没有 bindingRedirect 时的 `FileNotFoundException`（`Microsoft.Extensions.*` 10.0.0.0 → 10.0.0.14）。
+
 ## 0.6.1 (2026-11-27)
 
 首个正式版（去掉 `-beta`）。主要能力：
@@ -39,4 +44,6 @@
 ## 0.1.0-beta.1 (2026-11-27)
 
 - 首次发布：契约生成器、Core、WPF、Blazor。
+
+
 

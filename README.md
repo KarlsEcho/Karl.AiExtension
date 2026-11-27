@@ -89,10 +89,10 @@ Demo.MCP 引用 AI.Extension.Abstractions（编写绑定声明）与 AI.Extensio
 
 ## 从 NuGet 安装（Beta）
 
-> 当前正式版 `0.6.1`。发布流程（Trusted Publishing / 打 tag）见 [.github/RELEASING.md](.github/RELEASING.md)。
+> 当前正式版 `0.6.2`。发布流程（Trusted Publishing / 打 tag）见 [.github/RELEASING.md](.github/RELEASING.md)。
 
 ```powershell
-dotnet add package Karl.AIExtension.WPF --version 0.6.1
+dotnet add package Karl.AIExtension.WPF --version 0.6.2
 # 按需单独引用：Karl.AIExtension.Core / Karl.AIExtension.Abstractions / Karl.AIExtension.Blazor
 ```
 
@@ -101,6 +101,7 @@ dotnet add package Karl.AIExtension.WPF --version 0.6.1
 - 注册方式不变：`services.AddAiExtensionWpf(options => ...)`；
 - WPF 包的「同进程 MCP 暴露」依赖 ASP.NET Core 共享框架（包已声明 `frameworkReference`；若宿主仍报缺失，加 `<FrameworkReference Include="Microsoft.AspNetCore.App" />`）。
 - **net48 目标**：`Karl.AIExtension.WPF` 包含 `lib/net48`，但 net48 只支持 **stdio** 暴露（HTTP 依赖 ASP.NET Core，不可用）；宿主需安装 .NET Framework 4.8。
+- net48 插件请在初始化最早期调用 `AiNet48Compatibility.EnsureAssemblyResolver()`（Abstractions 模块初始化也会自动安装），用于兜底缺少 `bindingRedirect` 的 .NET Framework 宿主。
 
 ## 3. 快速开始
 
@@ -355,6 +356,8 @@ services.AddAiExtensionWpf(
 - [`docs/UI.md`](docs/UI.md)：**自定义 AI UI**（整槽位替换 / 复制内置视图改造；为什么不做模板 key 层）
 - [.github/RELEASING.md](.github/RELEASING.md)：**NuGet 打包与发布**（包清单、Trusted Publishing 策略、打 tag 自动发布、本地验证）
 - [`docs/BLAZOR.md`](docs/BLAZOR.md)：Blazor 分支如何复用同一套核心
+
+
 
 
 
