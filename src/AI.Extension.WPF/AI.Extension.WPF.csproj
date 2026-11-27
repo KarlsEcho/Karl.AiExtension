@@ -1,21 +1,28 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework></TargetFramework>
+    <TargetFrameworks>net10.0-windows;net48</TargetFrameworks>
     <UseWPF>true</UseWPF>
     <RootNamespace>AI.Extension.WPF</RootNamespace>
-    <Description>AI Extension 的 WPF 外壳：聊天面板、工具调用可视化、UI 线程调度实现、同进程对外暴露 MCP（Streamable HTTP）。</Description>
+    <Description>AI Extension 的 WPF 外壳：聊天面板、工具调用可视化、UI 线程调度实现、MCP 对外暴露（HTTP / stdio）。</Description>
     <IsPackable>true</IsPackable>
     <PackageId>Karl.AIExtension.WPF</PackageId>
   </PropertyGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-windows'">
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="ModelContextProtocol.AspNetCore" />
     <PackageReference Include="MdXaml" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <PackageReference Include="Polyfill" PrivateAssets="all" />
+    <PackageReference Include="System.Text.Json" />
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" />
   </ItemGroup>
 
   <ItemGroup>
@@ -39,8 +46,3 @@
   </ItemGroup>
 
 </Project>
-
-
-
-
-

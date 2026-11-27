@@ -88,6 +88,9 @@ public sealed class AiDiagnosticsViewModel : ObservableObject
         set => SetProperty(ref _exposurePortText, value);
     }
 
+    /// <summary>当前目标框架是否支持 HTTP 暴露。</summary>
+    public bool IsHttpSupported => _exposure.IsSupported;
+
     /// <summary>是否已开启对外暴露。</summary>
     public bool IsExposing
     {
@@ -339,6 +342,7 @@ public sealed class AiDiagnosticsViewModel : ObservableObject
         }
     }
 }
+
 
 
 

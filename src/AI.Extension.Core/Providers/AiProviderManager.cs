@@ -1,3 +1,4 @@
+using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
@@ -193,7 +194,7 @@ public sealed class AiProviderManager : IAiProviderManager
         AiProviderDefinition provider,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(provider);
+        AiGuard.NotNull(provider);
 
         AiProviderDefinition normalized = Normalize(provider);
 
@@ -231,7 +232,7 @@ public sealed class AiProviderManager : IAiProviderManager
     /// <inheritdoc />
     public async Task RemoveAsync(string providerId, CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(providerId);
+        AiGuard.NotNullOrWhiteSpace(providerId);
 
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -342,7 +343,7 @@ public sealed class AiProviderManager : IAiProviderManager
             .ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
-        await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         using JsonDocument document = await JsonDocument
             .ParseAsync(stream, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
@@ -592,5 +593,6 @@ public sealed class AiProviderManager : IAiProviderManager
         return seeds;
     }
 }
+
 
 

@@ -9,8 +9,8 @@ public static class AiProviderClientFactory
     /// <summary>为指定供应商与模型创建聊天客户端。</summary>
     public static IChatClient Create(AiProviderDefinition provider, AiModelDefinition model)
     {
-        ArgumentNullException.ThrowIfNull(provider);
-        ArgumentNullException.ThrowIfNull(model);
+        AiGuard.NotNull(provider);
+        AiGuard.NotNull(model);
 
         if (provider.Kind != AiProviderKind.OpenAICompatible)
         {
@@ -39,3 +39,4 @@ public static class AiProviderClientFactory
         return openAiClient.GetChatClient(model.Id).AsIChatClient();
     }
 }
+

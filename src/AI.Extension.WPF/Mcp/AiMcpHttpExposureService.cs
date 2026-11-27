@@ -1,3 +1,4 @@
+#if NET10_0_OR_GREATER
 using System.Reflection;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
@@ -8,29 +9,6 @@ using ModelContextProtocol.AspNetCore;
 using ModelContextProtocol.Server;
 
 namespace AI.Extension.WPF.Mcp;
-
-/// <summary>
-/// 在**当前进程内**把 MCP Server 通过 Streamable HTTP 暴露到本机端口。
-/// <para>
-/// 与 <c>McpServerBridge</c>（进程内管道，供应用内 AI 使用）互不影响：
-/// 这里额外启动一个轻量 ASP.NET Core（Kestrel）宿，复用同一个工具程序集与工具依赖
-/// （工具构造函数参数从宿主 DI 取实例转发过去），因此不需要单独项目/单独进程。
-/// </para>
-/// </summary>
-public interface IMcpHttpExposureService : IAsyncDisposable
-{
-    /// <summary>是否已开启暴露。</summary>
-    bool IsRunning { get; }
-
-    /// <summary>开启后的访问地址（例如 <c>http://127.0.0.1:5199/mcp</c>）；未开启时为 null。</summary>
-    string? EndpointUrl { get; }
-
-    /// <summary>在指定端口开启暴露，返回访问地址。</summary>
-    Task<string> StartAsync(int port, CancellationToken cancellationToken = default);
-
-    /// <summary>关闭暴露。</summary>
-    Task StopAsync(CancellationToken cancellationToken = default);
-}
 
 /// <summary>默认实现：同进程内启动一个只监听 127.0.0.1 的 Kestrel，挂载 MCP 的 Streamable HTTP 端点。</summary>
 public sealed class AiMcpHttpExposureService : IMcpHttpExposureService
@@ -44,6 +22,9 @@ public sealed class AiMcpHttpExposureService : IMcpHttpExposureService
     {
         _services = services ?? throw new ArgumentNullException(nameof(services));
     }
+
+    /// <inheritdoc />
+    public bool IsSupported => true;
 
     /// <inheritdoc />
     public bool IsRunning => _app is not null;
@@ -163,6 +144,5 @@ public sealed class AiMcpHttpExposureService : IMcpHttpExposureService
         }
     }
 }
-
-
+#endif
 

@@ -135,7 +135,7 @@ public sealed class ChatSession
     /// <summary>发送一条用户消息，返回最终回复与工具轨迹。</summary>
     public async Task<AiChatReply> SendAsync(string userInput, CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(userInput);
+        AiGuard.NotNullOrWhiteSpace(userInput);
         await _turnGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -150,7 +150,7 @@ public sealed class ChatSession
     /// <summary>发送一条用户消息（流式）：边生成边通过 <see cref="TextDelta"/> 推送增量。</summary>
     public async Task<AiChatReply> SendStreamingAsync(string userInput, CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(userInput);
+        AiGuard.NotNullOrWhiteSpace(userInput);
         await _turnGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -747,6 +747,7 @@ public sealed class ChatSession
             """;
     }
 }
+
 
 
 

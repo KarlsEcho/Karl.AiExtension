@@ -26,7 +26,7 @@ internal sealed class AiMcpExposureHostedService : IHostedService
             return;
         }
 
-        if (_options.Mode.HasFlag(AiMcpExposureMode.Http))
+        if (_http.IsSupported && _options.Mode.HasFlag(AiMcpExposureMode.Http))
         {
             try
             {
@@ -78,3 +78,4 @@ internal sealed class AiMcpExposureHostedService : IHostedService
         }
     }
 }
+

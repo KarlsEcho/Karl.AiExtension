@@ -57,7 +57,7 @@ public sealed class AiExtensionOptions
     /// </summary>
     public void UseMcpToolsFrom(Assembly assembly)
     {
-        ArgumentNullException.ThrowIfNull(assembly);
+        AiGuard.NotNull(assembly);
         McpToolsAssembly = assembly;
     }
 }
@@ -83,7 +83,7 @@ public static class AiExtensionServiceCollectionExtensions
         this IServiceCollection services,
         Action<AiExtensionOptions>? configure)
     {
-        ArgumentNullException.ThrowIfNull(services);
+        AiGuard.NotNull(services);
 
         var options = new AiExtensionOptions();
         configure?.Invoke(options);
@@ -125,8 +125,8 @@ public static class AiExtensionServiceCollectionExtensions
         this IServiceCollection services,
         Assembly toolsAssembly)
     {
-        ArgumentNullException.ThrowIfNull(services);
-        ArgumentNullException.ThrowIfNull(toolsAssembly);
+        AiGuard.NotNull(services);
+        AiGuard.NotNull(toolsAssembly);
 
         RegisterGeneratedBridges(services, toolsAssembly);
         return services;
@@ -174,3 +174,4 @@ internal sealed class AiExtensionIntegrationHostedService(IServiceProvider servi
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
+

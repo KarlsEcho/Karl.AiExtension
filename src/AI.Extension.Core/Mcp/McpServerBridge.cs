@@ -48,7 +48,10 @@ public sealed class McpServerBridge : IAsyncDisposable
         await _connectGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(nameof(McpServerBridge));
+            }
 
             if (_client is not null)
             {
@@ -103,9 +106,10 @@ public static class McpServerBridgeExtensions
     /// <summary>使用进程内双工流作为 MCP Server 的传输层。</summary>
     public static IMcpServerBuilder WithInProcessStreamTransport(this IMcpServerBuilder builder, McpServerBridge bridge)
     {
-        ArgumentNullException.ThrowIfNull(builder);
-        ArgumentNullException.ThrowIfNull(bridge);
+        AiGuard.NotNull(builder);
+        AiGuard.NotNull(bridge);
 
         return builder.WithStreamServerTransport(bridge.ServerInputStream, bridge.ServerOutputStream);
     }
 }
+

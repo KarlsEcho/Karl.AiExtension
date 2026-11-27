@@ -106,7 +106,12 @@
                                   ItemTemplate="{StaticResource ToolTemplate}" />
                 </Expander>
 
-                <Expander Header="对外暴露 MCP（Streamable HTTP，仅本机）" IsExpanded="True" FontSize="12" Foreground="#334155" Margin="0,0,0,8">
+                <Expander Header="对外暴露 MCP（Streamable HTTP，仅本机）"
+                          IsExpanded="True"
+                          FontSize="12"
+                          Foreground="#334155"
+                          Margin="0,0,0,8"
+                          Visibility="{Binding IsHttpSupported, Converter={StaticResource BoolToVisibility}}">
                     <Border Padding="10,8" Background="#FFFBEB" BorderBrush="#FDE68A" BorderThickness="1" CornerRadius="8">
                         <StackPanel>
                             <TextBlock Text="默认关闭。开启后，本机其他 AI harness（Claude Code / WorkBuddy 等）可通过 URL 使用同一套 MCP 工具；不需要再单独启动 Demo.Host。"
@@ -217,4 +222,5 @@
         </ScrollViewer>
     </DockPanel>
 </UserControl>
+
 

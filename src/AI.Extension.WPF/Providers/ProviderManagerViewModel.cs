@@ -411,15 +411,18 @@ public sealed class ProviderItemViewModel : ObservableObject
     /// <summary>解析模型列表文本。</summary>
     public IReadOnlyList<AiModelDefinition> ParseModels()
         => ModelsText
-            .Split(['\r', '\n', ',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Split(new[] { '\r', '\n', ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(static line => line.Trim())
             .Where(static line => line.Length > 0)
             .Select(static line =>
             {
-                string[] parts = line.Split('|', 2, StringSplitOptions.TrimEntries);
+                string[] parts = line.Split(new[] { '|' }, 2);
+                string id = parts[0].Trim();
+                string? displayName = parts.Length > 1 ? parts[1].Trim() : null;
                 return new AiModelDefinition
                 {
-                    Id = parts[0],
-                    DisplayName = parts.Length > 1 && parts[1].Length > 0 ? parts[1] : null,
+                    Id = id,
+                    DisplayName = string.IsNullOrEmpty(displayName) ? null : displayName,
                 };
             })
             .ToArray();

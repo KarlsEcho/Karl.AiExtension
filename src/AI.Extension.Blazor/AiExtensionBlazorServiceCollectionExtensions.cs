@@ -22,7 +22,7 @@ public static class AiExtensionBlazorServiceCollectionExtensions
     /// <returns>原服务集合，便于链式调用。</returns>
     public static IServiceCollection AddAiExtensionBlazor(this IServiceCollection services)
     {
-        ArgumentNullException.ThrowIfNull(services);
+        AiGuard.NotNull(services);
 
         // TryAdd 注册：宿主若已提供 WPF 风格或其他自定义实现，不会被覆盖。
         services.AddAiExtensionCore();
@@ -30,3 +30,4 @@ public static class AiExtensionBlazorServiceCollectionExtensions
         return services;
     }
 }
+

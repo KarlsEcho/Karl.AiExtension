@@ -16,7 +16,7 @@ public interface IAiChatClientAccessor
     string DisplayName { get; }
 
     /// <summary>是否已配置真实供应商/模型（未配置时不应让兜底客户端参与标题生成等附加请求）。</summary>
-    bool IsConfigured => true;
+    bool IsConfigured { get; }
 
     /// <summary>当前模型发生变化。</summary>
     event EventHandler? Changed;

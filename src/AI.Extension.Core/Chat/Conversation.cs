@@ -160,7 +160,7 @@ public sealed class JsonConversationStore : IConversationStore
     /// <inheritdoc />
     public async Task<Conversation?> GetAsync(string conversationId, CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(conversationId);
+        AiGuard.NotNullOrWhiteSpace(conversationId);
 
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -177,7 +177,7 @@ public sealed class JsonConversationStore : IConversationStore
     /// <inheritdoc />
     public async Task SaveAsync(Conversation conversation, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(conversation);
+        AiGuard.NotNull(conversation);
 
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -194,7 +194,7 @@ public sealed class JsonConversationStore : IConversationStore
     /// <inheritdoc />
     public async Task DeleteAsync(string conversationId, CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(conversationId);
+        AiGuard.NotNullOrWhiteSpace(conversationId);
 
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -218,7 +218,7 @@ public sealed class JsonConversationStore : IConversationStore
     /// <inheritdoc />
     public async Task SetArchivedAsync(string conversationId, bool archived, CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(conversationId);
+        AiGuard.NotNullOrWhiteSpace(conversationId);
 
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -512,3 +512,4 @@ public sealed class JsonConversationStore : IConversationStore
         }
     }
 }
+

@@ -36,7 +36,7 @@ public sealed class InMemoryAiProviderStore : IAiProviderStore
     /// <inheritdoc />
     public Task SaveAsync(AiProviderState state, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(state);
+        AiGuard.NotNull(state);
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (_sync)
@@ -47,3 +47,4 @@ public sealed class InMemoryAiProviderStore : IAiProviderStore
         return Task.CompletedTask;
     }
 }
+

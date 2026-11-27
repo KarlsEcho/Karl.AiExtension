@@ -14,7 +14,7 @@ public static class AiExtensionCoreServiceCollectionExtensions
     /// <summary>注册 UI 上下文追踪器与 UI 线程调度抽象（不含聊天与 MCP）。</summary>
     public static IServiceCollection AddAiExtensionCore(this IServiceCollection services)
     {
-        ArgumentNullException.ThrowIfNull(services);
+        AiGuard.NotNull(services);
 
         services.TryAddSingleton<IUiActivityTracker>(_ => new UiActivityTracker());
         services.TryAddSingleton<IUiDispatcher, ImmediateUiDispatcher>();
@@ -30,7 +30,7 @@ public static class AiExtensionCoreServiceCollectionExtensions
         this IServiceCollection services,
         IAiProviderStore? store = null)
     {
-        ArgumentNullException.ThrowIfNull(services);
+        AiGuard.NotNull(services);
 
         services.TryAddSingleton<IAiSecretProtector, DpapiSecretProtector>();
 
@@ -64,7 +64,7 @@ public static class AiExtensionCoreServiceCollectionExtensions
         AiChatOptions? options = null,
         IChatClient? fallbackChatClient = null)
     {
-        ArgumentNullException.ThrowIfNull(services);
+        AiGuard.NotNull(services);
 
         services.AddAiExtensionCore();
         services.AddAiProviderManagement();
@@ -108,3 +108,4 @@ public static class AiExtensionCoreServiceCollectionExtensions
         return services;
     }
 }
+

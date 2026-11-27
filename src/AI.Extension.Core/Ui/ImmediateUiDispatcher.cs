@@ -9,14 +9,15 @@ public sealed class ImmediateUiDispatcher : IUiDispatcher
     /// <inheritdoc />
     public Task<T> InvokeAsync<T>(Func<Task<T>> callback)
     {
-        ArgumentNullException.ThrowIfNull(callback);
+        AiGuard.NotNull(callback);
         return callback();
     }
 
     /// <inheritdoc />
     public Task InvokeAsync(Func<Task> callback)
     {
-        ArgumentNullException.ThrowIfNull(callback);
+        AiGuard.NotNull(callback);
         return callback();
     }
 }
+

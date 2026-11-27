@@ -22,7 +22,7 @@ public static class WpfServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddAiExtensionWpf(this IServiceCollection services)
     {
-        ArgumentNullException.ThrowIfNull(services);
+        AiGuard.NotNull(services);
 
         services.AddAiExtensionCore();
         services.RemoveAll<IUiDispatcher>();
@@ -34,7 +34,11 @@ public static class WpfServiceCollectionExtensions
         services.TryAddSingleton<AiDiagnosticsViewModel>();
 
         // 同进程内「对外暴露 MCP」（Streamable HTTP），由诊断面板的开关控制
+#if NET10_0_OR_GREATER
         services.TryAddSingleton<IMcpHttpExposureService, AiMcpHttpExposureService>();
+#else
+        services.TryAddSingleton<IMcpHttpExposureService, NullMcpHttpExposureService>();
+#endif
 
         // 可替换 UI：槽位配置 + 视图工厂（宿主用 AiChatHost 等宿主控件即可吃到配置）
         services.TryAddSingleton<AiExtensionUiOptions>();
@@ -75,8 +79,8 @@ public static class WpfServiceCollectionExtensions
         Action<AiExtensionUiOptions>? configureUi = null,
         Action<AiMcpExposureOptions>? configureMcpExposure = null)
     {
-        ArgumentNullException.ThrowIfNull(services);
-        ArgumentNullException.ThrowIfNull(configure);
+        AiGuard.NotNull(services);
+        AiGuard.NotNull(configure);
 
         // 先注册 WPF 外壳（UI 调度器必须在核心层 TryAdd 之前就位）
         services.AddAiExtensionWpf();
@@ -101,4 +105,6 @@ public static class WpfServiceCollectionExtensions
         return services.AddAiExtension(configure);
     }
 }
+
+
 

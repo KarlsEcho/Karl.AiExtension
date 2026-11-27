@@ -72,7 +72,7 @@ public sealed class JsonAiProviderStore : IAiProviderStore
     /// <inheritdoc />
     public async Task SaveAsync(AiProviderState state, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(state);
+        AiGuard.NotNull(state);
 
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -209,4 +209,5 @@ public sealed class JsonAiProviderStore : IAiProviderStore
         public string? DisplayName { get; set; }
     }
 }
+
 

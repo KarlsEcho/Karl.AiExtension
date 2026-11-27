@@ -18,7 +18,7 @@ public sealed class WpfUiDispatcher : IUiDispatcher
     /// <inheritdoc />
     public Task<T> InvokeAsync<T>(Func<Task<T>> callback)
     {
-        ArgumentNullException.ThrowIfNull(callback);
+        AiGuard.NotNull(callback);
 
         if (Dispatcher.CheckAccess())
         {
@@ -31,7 +31,7 @@ public sealed class WpfUiDispatcher : IUiDispatcher
     /// <inheritdoc />
     public Task InvokeAsync(Func<Task> callback)
     {
-        ArgumentNullException.ThrowIfNull(callback);
+        AiGuard.NotNull(callback);
 
         if (Dispatcher.CheckAccess())
         {
@@ -41,3 +41,4 @@ public sealed class WpfUiDispatcher : IUiDispatcher
         return Dispatcher.InvokeAsync(callback).Task.Unwrap();
     }
 }
+
