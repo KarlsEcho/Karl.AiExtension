@@ -9,7 +9,7 @@
     <Deterministic>true</Deterministic>
 
     <!-- NuGet 包元数据（demo/tests 通过 IsPackable=false 排除） -->
-    <Version>0.6.0</Version>
+    <Version>0.6.1</Version>
     <Company>Karl</Company>
     <Product>Karl.AiExtension</Product>
     <Authors>Karl</Authors>
@@ -17,7 +17,7 @@
     <RepositoryUrl>https://github.com/KarlsEcho/Karl.AiExtension</RepositoryUrl>
     <PackageProjectUrl>https://github.com/KarlsEcho/Karl.AiExtension</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageReleaseNotes>0.6.0 正式版：Markdown 消息、ask_user 选择卡片、MCP stdio 暴露、net48 WPF 多目标；详见 CHANGELOG.md。</PackageReleaseNotes>
+    <PackageReleaseNotes>0.6.1 正式版：Markdown 消息、ask_user 选择卡片、MCP stdio 暴露、net48 WPF 多目标；详见 CHANGELOG.md。</PackageReleaseNotes>
     <PackageTags>ai;mcp;wpf;blazor;source-generator;dotnet</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -45,6 +45,7 @@
   </ItemGroup>
 
 </Project>
+
 
 
 

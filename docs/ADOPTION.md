@@ -32,9 +32,9 @@
 **B. 打包成 NuGet 后引用**
 
 ```xml
-<PackageReference Include="Karl.AIExtension.Abstractions" Version="0.6.0" />
-<PackageReference Include="Karl.AIExtension.Core" Version="0.6.0" />
-<PackageReference Include="Karl.AIExtension.WPF" Version="0.6.0" />
+<PackageReference Include="Karl.AIExtension.Abstractions" Version="0.6.1" />
+<PackageReference Include="Karl.AIExtension.Core" Version="0.6.1" />
+<PackageReference Include="Karl.AIExtension.WPF" Version="0.6.1" />
 ```
 
 > **net48 说明**：`Karl.AIExtension.WPF` 同时提供 `lib/net48` 与 `lib/net10.0-windows` 资产，net48 宿主只需安装 .NET Framework 4.8；但 net48 只支持 **stdio** 暴露（HTTP 依赖 ASP.NET Core，不可用），且 Blazor 包仅支持 net10。`AiMcpStdioBridge.exe` 会随包自动复制到输出目录。
@@ -283,6 +283,7 @@ await bridge.ConnectAsync();
 - MCP 绑定与语义封装：[`Demo.MCP/Ai/OrderServiceBinding.cs`](../demo/Demo.MCP/Ai/OrderServiceBinding.cs)、[`Demo.MCP/OrderTools.cs`](../demo/Demo.MCP/OrderTools.cs)
 - 组合根：[`Demo.Core/DemoBootstrap.cs`](../demo/Demo.Core/DemoBootstrap.cs)
 - WPF 宿主与面板：[`Demo.App/App.xaml.cs`](../demo/Demo.App/App.xaml.cs)、[`Demo.View/MainWindow.xaml`](../demo/Demo.View/MainWindow.xaml)
+
 
 
 
