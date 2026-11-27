@@ -89,10 +89,10 @@ Demo.MCP 引用 AI.Extension.Abstractions（编写绑定声明）与 AI.Extensio
 
 ## 从 NuGet 安装（Beta）
 
-> 当前版本 `0.6.0-beta.1`。发布流程（Trusted Publishing / 打 tag）见 [.github/RELEASING.md](.github/RELEASING.md)。
+> 当前正式版 `0.6.0`。发布流程（Trusted Publishing / 打 tag）见 [.github/RELEASING.md](.github/RELEASING.md)。
 
 ```powershell
-dotnet add package Karl.AIExtension.WPF --version 0.6.0-beta.1
+dotnet add package Karl.AIExtension.WPF --version 0.6.0
 # 按需单独引用：Karl.AIExtension.Core / Karl.AIExtension.Abstractions / Karl.AIExtension.Blazor
 ```
 
@@ -355,6 +355,8 @@ services.AddAiExtensionWpf(
 - [`docs/UI.md`](docs/UI.md)：**自定义 AI UI**（整槽位替换 / 复制内置视图改造；为什么不做模板 key 层）
 - [.github/RELEASING.md](.github/RELEASING.md)：**NuGet 打包与发布**（包清单、Trusted Publishing 策略、打 tag 自动发布、本地验证）
 - [`docs/BLAZOR.md`](docs/BLAZOR.md)：Blazor 分支如何复用同一套核心
+
+
 
 
 
