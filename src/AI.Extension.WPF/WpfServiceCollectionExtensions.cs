@@ -1,6 +1,7 @@
 using AI.Extension.WPF.Chat;
 using AI.Extension.WPF.Diagnostics;
 using AI.Extension.WPF.Mcp;
+using Microsoft.Extensions.Hosting;
 using AI.Extension.WPF.Providers;
 using AI.Extension.WPF.Threading;
 using AI.Extension.WPF.Ui;
@@ -38,6 +39,11 @@ public static class WpfServiceCollectionExtensions
         // 可替换 UI：槽位配置 + 视图工厂（宿主用 AiChatHost 等宿主控件即可吃到配置）
         services.TryAddSingleton<AiExtensionUiOptions>();
         services.TryAddSingleton<IAiViewFactory, AiViewFactory>();
+
+        // 对外暴露 MCP：HTTP（net10）/ stdio 管道
+        services.TryAddSingleton<AiMcpExposureOptions>();
+        services.TryAddSingleton<IAiMcpPipeExposureService, AiMcpPipeExposureService>();
+        services.AddHostedService<AiMcpExposureHostedService>();
         return services;
     }
 
@@ -66,7 +72,8 @@ public static class WpfServiceCollectionExtensions
     public static IServiceCollection AddAiExtensionWpf(
         this IServiceCollection services,
         Action<AiExtensionOptions> configure,
-        Action<AiExtensionUiOptions>? configureUi = null)
+        Action<AiExtensionUiOptions>? configureUi = null,
+        Action<AiMcpExposureOptions>? configureMcpExposure = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configure);
@@ -82,7 +89,16 @@ public static class WpfServiceCollectionExtensions
             services.AddSingleton(uiOptions);
         }
 
+        if (configureMcpExposure is not null)
+        {
+            var exposureOptions = new AiMcpExposureOptions();
+            configureMcpExposure(exposureOptions);
+            services.RemoveAll<AiMcpExposureOptions>();
+            services.AddSingleton(exposureOptions);
+        }
+
         // 再注册供应商/会话/桥接/进程内 MCP 与自动启动服务
         return services.AddAiExtension(configure);
     }
 }
+

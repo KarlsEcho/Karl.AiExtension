@@ -68,7 +68,8 @@ public static class DemoBootstrap
     public static IServiceCollection AddDemoCoreForWpf(
         this IServiceCollection services,
         AiChatOptions? chatOptions = null,
-        IAiProviderStore? providerStore = null)
+        IAiProviderStore? providerStore = null,
+        Action<AI.Extension.WPF.Mcp.AiMcpExposureOptions>? configureMcpExposure = null)
     {
         ArgumentNullException.ThrowIfNull(services);
 
@@ -81,7 +82,7 @@ public static class DemoBootstrap
             options.ChatOptions = chatOptions ?? new AiChatOptions();
             options.FallbackChatClient = new DemoOfflineChatClient();
             options.ProviderStore = providerStore;
-        });
+        }, configureMcpExposure: configureMcpExposure);
 
         return services;
     }
@@ -145,3 +146,4 @@ public static class DemoBootstrap
         services.TryAddSingleton<IOrderService>(provider => provider.GetRequiredService<OrdersViewModel>());
     }
 }
+

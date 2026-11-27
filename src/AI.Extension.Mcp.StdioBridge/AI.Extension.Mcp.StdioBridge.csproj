@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>AiMcpStdioBridge</AssemblyName>
+    <RootNamespace>AI.Extension.Mcp.StdioBridge</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <Description>把 MCP stdio 透明转发到 WPF 进程内命名管道，不依赖 MCP SDK。</Description>
+  </PropertyGroup>
+
+</Project>

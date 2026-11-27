@@ -89,10 +89,10 @@ Demo.MCP 引用 AI.Extension.Abstractions（编写绑定声明）与 AI.Extensio
 
 ## 从 NuGet 安装（Beta）
 
-> 当前版本 `0.4.0-beta.1`。发布流程（Trusted Publishing / 打 tag）见 [.github/RELEASING.md](.github/RELEASING.md)。
+> 当前版本 `0.5.0-beta.1`。发布流程（Trusted Publishing / 打 tag）见 [.github/RELEASING.md](.github/RELEASING.md)。
 
 ```powershell
-dotnet add package Karl.AIExtension.WPF --version 0.4.0-beta.1
+dotnet add package Karl.AIExtension.WPF --version 0.5.0-beta.1
 # 按需单独引用：Karl.AIExtension.Core / Karl.AIExtension.Abstractions / Karl.AIExtension.Blazor
 ```
 
@@ -282,6 +282,39 @@ session.UserInputHandler = async (request, cancellationToken) =>
 
 > 安全边界：选项最多 8 个；问题/选项只做展示，不执行任何代码；`ask_user` 不会暴露给外部 MCP 客户端。
 
+### 3.10 对外暴露 MCP（HTTP / stdio）
+
+框架支持把同一套 MCP 工具暴露给 WorkBuddy / Claude Code 等外部 harness：
+
+```csharp
+services.AddAiExtensionWpf(
+    options => options.UseMcpToolsFrom(typeof(MyTools).Assembly),
+    configureMcpExposure: exposure =>
+    {
+        // 可组合：Http（仅 net10）/ Stdio
+        exposure.Mode = AiMcpExposureMode.Http | AiMcpExposureMode.Stdio;
+        exposure.HttpPort = 5199;
+        exposure.StdioPipeName = "OpenWASO.AiExtension.Mcp";
+    });
+```
+
+- **HTTP**：仅 net10；启动后在「工具与契约」页看到 URL，harness 直接填 URL；
+- **stdio**：框架在 WPF 进程内起命名管道 MCP Server，`AiMcpStdioBridge.exe` 随 NuGet 包自动复制到输出目录；WorkBuddy 配置：
+  ```json
+  {
+    "mcpServers": {
+      "wasu": {
+        "type": "stdio",
+        "command": "C:\\YourApp\\AiMcpStdioBridge.exe",
+        "args": ["--pipe", "OpenWASO.AiExtension.Mcp"]
+      }
+    }
+  }
+  ```
+  诊断面板提供「复制 WorkBuddy 配置」按钮；
+- 两种模式暴露同一套工具，工具仍在 WPF 进程执行，UI 状态/权限不变；
+- net48 目标后续只保留 stdio。
+
 ## 4. 新增一个 AI 能力（5 步）
 
 以「客户管理」为例：
@@ -321,6 +354,8 @@ session.UserInputHandler = async (request, cancellationToken) =>
 - [`docs/UI.md`](docs/UI.md)：**自定义 AI UI**（整槽位替换 / 复制内置视图改造；为什么不做模板 key 层）
 - [.github/RELEASING.md](.github/RELEASING.md)：**NuGet 打包与发布**（包清单、Trusted Publishing 策略、打 tag 自动发布、本地验证）
 - [`docs/BLAZOR.md`](docs/BLAZOR.md)：Blazor 分支如何复用同一套核心
+
+
 
 
 

@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using AI.Extension.Mcp;
+using AI.Extension.WPF.Mcp;
 using Demo.Core;
 using Demo.View;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,7 +29,11 @@ public partial class App : Application
             builder.Logging.ClearProviders();
 
             // 组合根：一行接入 WPF 外壳 + 业务 + 契约桥接 + 进程内 MCP（供应商初始化与连接由框架自动完成）
-            builder.Services.AddDemoCoreForWpf();
+            builder.Services.AddDemoCoreForWpf(configureMcpExposure: exposure =>
+            {
+                exposure.Mode = AiMcpExposureMode.Stdio;
+                exposure.StdioPipeName = "Karl.AiExtension.Demo.Mcp";
+            });
             builder.Services.AddSingleton<MainWindow>();
 
             _host = builder.Build();
@@ -160,3 +165,4 @@ public partial class App : Application
         base.OnExit(e);
     }
 }
+

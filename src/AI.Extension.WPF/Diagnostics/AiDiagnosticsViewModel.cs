@@ -1,4 +1,7 @@
 using System.ComponentModel;
+using System.IO;
+using System.Text.Json;
+using System.Windows;
 using System.Collections.ObjectModel;
 using AI.Extension.Mcp;
 using AI.Extension.Mvvm;
@@ -24,12 +27,16 @@ public sealed class AiDiagnosticsViewModel : ObservableObject
     private readonly McpServerBridge _bridge;
     private readonly IUiActivityTracker _activityTracker;
     private readonly IMcpHttpExposureService _exposure;
+    private readonly IAiMcpPipeExposureService _pipeExposure;
 
     private string _exposurePortText = "5199";
     private bool _isExposing;
     private bool _isExposureBusy;
     private string _exposureStatusText = "默认关闭：开启后本机 harness 可通过 URL 访问同一套工具。";
     private string? _exposureUrl;
+    private bool _isStdioExposing;
+    private bool _isStdioBusy;
+    private string _stdioStatusText = "stdio 未启动。";
 
     /// <summary>构造诊断视图模型。</summary>
     public AiDiagnosticsViewModel(
@@ -37,16 +44,21 @@ public sealed class AiDiagnosticsViewModel : ObservableObject
         McpServerBridge bridge,
         IUiActivityTracker activityTracker,
         IMcpHttpExposureService exposure,
+        IAiMcpPipeExposureService pipeExposure,
         IAiViewFactory? viewFactory = null)
     {
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _bridge = bridge ?? throw new ArgumentNullException(nameof(bridge));
         _activityTracker = activityTracker ?? throw new ArgumentNullException(nameof(activityTracker));
         _exposure = exposure ?? throw new ArgumentNullException(nameof(exposure));
+        _pipeExposure = pipeExposure ?? throw new ArgumentNullException(nameof(pipeExposure));
+        _pipeExposure.StatusChanged += OnStdioStatusChanged;
         ViewFactory = viewFactory;
 
         RefreshCommand = new RelayCommand(_ => Refresh());
         ToggleExposureCommand = new AsyncRelayCommand(_ => ToggleExposureAsync(), _ => !IsExposureBusy);
+        ToggleStdioExposureCommand = new AsyncRelayCommand(_ => ToggleStdioAsync(), _ => !IsStdioBusy);
+        CopyStdioConfigCommand = new RelayCommand(_ => CopyStdioConfig());
 
         Refresh();
     }
@@ -150,6 +162,137 @@ public sealed class AiDiagnosticsViewModel : ObservableObject
 
         IsExposing = _exposure.IsRunning;
         ExposureUrl = _exposure.EndpointUrl;
+        RefreshStdioState();
+    }
+
+    /// <summary>开启/关闭 stdio 暴露的命令。</summary>
+    public AsyncRelayCommand ToggleStdioExposureCommand { get; }
+
+    /// <summary>复制 WorkBuddy stdio 配置的命令。</summary>
+    public RelayCommand CopyStdioConfigCommand { get; }
+
+    /// <summary>是否已开启 stdio 暴露。</summary>
+    public bool IsStdioExposing
+    {
+        get => _isStdioExposing;
+        private set
+        {
+            if (SetProperty(ref _isStdioExposing, value))
+            {
+                OnPropertyChanged(nameof(StdioButtonText));
+            }
+        }
+    }
+
+    /// <summary>stdio 开关按钮文案。</summary>
+    public string StdioButtonText => IsStdioExposing ? "关闭 stdio" : "开启 stdio";
+
+    /// <summary>stdio 状态文案。</summary>
+    public string StdioStatusText
+    {
+        get => _stdioStatusText;
+        private set => SetProperty(ref _stdioStatusText, value);
+    }
+
+    /// <summary>管道名。</summary>
+    public string StdioPipeName => _pipeExposure.PipeName;
+
+    /// <summary>Bridge 路径。</summary>
+    public string StdioBridgePath => _pipeExposure.BridgePath;
+
+    /// <summary>stdio 开启/关闭是否处理中。</summary>
+    public bool IsStdioBusy
+    {
+        get => _isStdioBusy;
+        private set
+        {
+            if (SetProperty(ref _isStdioBusy, value))
+            {
+                ToggleStdioExposureCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    private async Task ToggleStdioAsync()
+    {
+        if (IsStdioBusy)
+        {
+            return;
+        }
+
+        IsStdioBusy = true;
+        try
+        {
+            if (_pipeExposure.IsRunning)
+            {
+                StdioStatusText = "正在关闭…";
+                await _pipeExposure.StopAsync().ConfigureAwait(true);
+                RefreshStdioState();
+                return;
+            }
+
+            StdioStatusText = "正在启动管道监听…";
+            await _pipeExposure.StartAsync().ConfigureAwait(true);
+            RefreshStdioState();
+        }
+        catch (Exception exception)
+        {
+            StdioStatusText = "stdio 操作失败：" + exception.Message;
+        }
+        finally
+        {
+            IsStdioBusy = false;
+        }
+    }
+
+    private void RefreshStdioState()
+    {
+        IsStdioExposing = _pipeExposure.IsRunning;
+        StdioStatusText = File.Exists(_pipeExposure.BridgePath)
+            ? _pipeExposure.StatusText
+            : $"Bridge 未找到：{_pipeExposure.BridgePath}";
+        OnPropertyChanged(nameof(StdioPipeName));
+        OnPropertyChanged(nameof(StdioBridgePath));
+        OnPropertyChanged(nameof(StdioButtonText));
+    }
+
+    private void CopyStdioConfig()
+    {
+        var config = new
+        {
+            mcpServers = new Dictionary<string, object>
+            {
+                ["wasu"] = new
+                {
+                    type = "stdio",
+                    command = _pipeExposure.BridgePath,
+                    args = new[] { "--pipe", _pipeExposure.PipeName },
+                },
+            },
+        };
+
+        string json = JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true });
+        try
+        {
+            Clipboard.SetText(json);
+            StdioStatusText = "WorkBuddy 配置已复制到剪贴板。";
+        }
+        catch (Exception exception)
+        {
+            StdioStatusText = "复制失败：" + exception.Message;
+        }
+    }
+
+    private void OnStdioStatusChanged()
+    {
+        try
+        {
+            Application.Current?.Dispatcher.BeginInvoke(new Action(RefreshStdioState));
+        }
+        catch
+        {
+            // 窗口关闭时忽略
+        }
     }
 
     private async Task ToggleExposureAsync()
@@ -196,5 +339,6 @@ public sealed class AiDiagnosticsViewModel : ObservableObject
         }
     }
 }
+
 
 

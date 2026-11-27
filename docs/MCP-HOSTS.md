@@ -145,3 +145,27 @@ dotnet run --project demo/Demo.Host -- --http
 - 三种模式共用同一套工具代码与同一份契约，不需要为 harness 单独适配。
 
 
+
+---
+
+## WPF 应用内暴露（stdio，推荐给 WorkBuddy）
+
+WPF 应用可以把工具暴露给本地 harness，不需要 ASP.NET Core：
+
+1. 在 DI 里配置 stdio（见 README 3.10）；
+2. `AiMcpStdioBridge.exe` 由 `Karl.AIExtension.WPF` 包自动复制到输出目录；
+3. WorkBuddy 配置：
+
+```json
+{
+  "mcpServers": {
+    "wasu": {
+      "type": "stdio",
+      "command": "C:\\YourApp\\AiMcpStdioBridge.exe",
+      "args": ["--pipe", "OpenWASO.AiExtension.Mcp"]
+    }
+  }
+}
+```
+
+工具在 WPF 进程内执行，因此可以访问当前 UI/DI/登录态；stdio 只在一台机器内有效，跨机请用 HTTP 或远程网关。

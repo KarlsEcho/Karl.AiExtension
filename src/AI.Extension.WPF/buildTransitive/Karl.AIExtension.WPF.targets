@@ -1,0 +1,14 @@
+<Project>
+
+  <!--
+    把 stdio Bridge 复制到使用者的输出/发布目录。
+    这样开发者只需要在 DI 里配置 stdio 模式，不需要手工部署 exe。
+  -->
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)..\tools\net48\AiMcpStdioBridge.exe"
+          Link="AiMcpStdioBridge.exe"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

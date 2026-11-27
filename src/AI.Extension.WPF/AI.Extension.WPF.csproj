@@ -26,7 +26,20 @@
     <InternalsVisibleTo Include="Demo.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- stdio Bridge：随包分发，并通过 buildTransitive target 自动复制到输出目录 -->
+    <None Include="..\AI.Extension.Mcp.StdioBridge\bin\$(Configuration)\net48\AiMcpStdioBridge.exe"
+          Pack="true"
+          PackagePath="tools/net48"
+          Visible="false" />
+    <None Include="buildTransitive\Karl.AIExtension.WPF.targets"
+          Pack="true"
+          PackagePath="buildTransitive"
+          Visible="false" />
+  </ItemGroup>
+
 </Project>
+
 
 
 

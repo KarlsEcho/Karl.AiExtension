@@ -155,6 +155,60 @@
                     </Border>
                 </Expander>
 
+                <Expander Header="对外暴露 MCP（stdio，WorkBuddy 等）" IsExpanded="True" FontSize="12" Foreground="#334155" Margin="0,0,0,8">
+                    <Border Padding="10,8" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="8">
+                        <StackPanel>
+                            <TextBlock Text="开启后，WorkBuddy / Claude Code 等 stdio MCP 客户端通过 AiMcpStdioBridge.exe 连接当前 WPF 进程；工具仍在应用内执行，UI 状态与权限不变。"
+                                       FontSize="11"
+                                       Foreground="#1E3A8A"
+                                       TextWrapping="Wrap" />
+
+                            <DockPanel Margin="0,8,0,0">
+                                <TextBlock Text="管道"
+                                           VerticalAlignment="Center"
+                                           FontSize="12"
+                                           Foreground="#334155" />
+                                <TextBox Text="{Binding StdioPipeName, Mode=OneWay}"
+                                         IsReadOnly="True"
+                                         Width="220"
+                                         Margin="6,0,0,0"
+                                         Padding="4,2"
+                                         VerticalContentAlignment="Center"
+                                         FontFamily="Consolas"
+                                         FontSize="11" />
+                                <Button Content="{Binding StdioButtonText}"
+                                        Command="{Binding ToggleStdioExposureCommand}"
+                                        Margin="8,0,0,0"
+                                        Padding="12,4"
+                                        Background="#2563EB"
+                                        Foreground="White"
+                                        BorderThickness="0"
+                                        FontWeight="SemiBold"
+                                        Cursor="Hand" />
+                            </DockPanel>
+
+                            <TextBlock Text="{Binding StdioStatusText}"
+                                       FontSize="11"
+                                       Foreground="#1E3A8A"
+                                       TextWrapping="Wrap"
+                                       Margin="0,6,0,0" />
+
+                            <TextBlock Text="{Binding StdioBridgePath}"
+                                       FontFamily="Consolas"
+                                       FontSize="10"
+                                       Foreground="#64748B"
+                                       TextWrapping="Wrap"
+                                       Margin="0,4,0,0" />
+
+                            <Button Content="复制 WorkBuddy 配置"
+                                    Command="{Binding CopyStdioConfigCommand}"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,8,0,0"
+                                    Padding="10,3" />
+                        </StackPanel>
+                    </Border>
+                </Expander>
+
                 <Expander Header="UI 上下文日志（环形缓冲，AI 唤醒时读取）" IsExpanded="True" FontSize="12" Foreground="#334155">
                     <ItemsControl ItemsSource="{Binding Activities}"
                                   ItemTemplate="{StaticResource ActivityTemplate}" />
