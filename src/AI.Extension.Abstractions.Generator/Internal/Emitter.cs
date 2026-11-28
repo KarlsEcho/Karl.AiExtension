@@ -256,28 +256,23 @@ internal static class Emitter
             builder.Append(contract.BridgeNamespace).Append('.').Append(contract.BridgeName).Append(", ");
             builder.Append(contract.BridgeNamespace).Append('.').Append(contract.BridgeName).AppendLine(">());");
             builder.AppendLine();
+
+            // 多程序集聚合：每个桥接同时以 IAiContractBridge 注册，目录从容器聚合全部桥接
+            builder.AppendLine("        global::Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions.TryAddEnumerable(");
+            builder.AppendLine("            services,");
+            builder.Append("            global::Microsoft.Extensions.DependencyInjection.ServiceDescriptor.")
+                .Append(contract.Lifetime)
+                .Append("<global::AI.Extension.IAiContractBridge, ")
+                .Append(contract.BridgeNamespace).Append('.').Append(contract.BridgeName).AppendLine(">());");
+            builder.AppendLine();
         }
 
-        builder.AppendLine("        // ===== 契约目录注册：UI 诊断面板可直接枚举当前暴露的 AI 契约 =====");
+        builder.AppendLine("        // ===== 契约目录注册：多程序集时由容器聚合全部 IAiContractBridge =====");
         builder.AppendLine("        global::Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions.TryAdd(");
         builder.AppendLine("            services,");
         builder.AppendLine("            global::Microsoft.Extensions.DependencyInjection.ServiceDescriptor.Singleton(");
         builder.AppendLine("                static provider => new global::AI.Extension.AiContractCatalog(");
-        builder.AppendLine("                    new global::AI.Extension.IAiContractBridge[]");
-        builder.AppendLine("                    {");
-        foreach (ContractSpec contract in contracts)
-        {
-            if (!contract.GenerateRegistration)
-            {
-                continue;
-            }
-
-            builder.Append("                        global::Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<")
-                .Append(contract.BridgeNamespace).Append('.').Append(contract.BridgeName)
-                .AppendLine(">(provider),");
-        }
-
-        builder.AppendLine("                    })));");
+        builder.AppendLine("                    global::Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetServices<global::AI.Extension.IAiContractBridge>(provider))));");
         builder.AppendLine();
         builder.AppendLine("        return services;");
         builder.AppendLine("    }");

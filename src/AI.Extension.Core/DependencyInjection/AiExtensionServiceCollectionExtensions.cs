@@ -45,20 +45,52 @@ public sealed class AiExtensionOptions
     /// <summary>会话存储实现（测试/定制存储可传实例）；为空时使用 <see cref="JsonConversationStore"/>。</summary>
     public IConversationStore? ConversationStore { get; set; }
 
-    /// <summary>是否启用 MCP 工具；设置后框架会自动登记契约桥接、创建进程内 MCP Server 并注册工具。</summary>
-    public Assembly? McpToolsAssembly { get; private set; }
+    private readonly List<Assembly> _mcpToolAssemblies = new();
+
+    /// <summary>所有已登记的工具程序集（按登记顺序）。</summary>
+    public IReadOnlyList<Assembly> McpToolAssemblies => _mcpToolAssemblies;
+
+    /// <summary>兼容旧 API：第一个/唯一工具程序集；未登记时为 null。</summary>
+    public Assembly? McpToolsAssembly => _mcpToolAssemblies.Count == 0 ? null : _mcpToolAssemblies[0];
+
+    /// <summary>
+    /// 可选：在框架完成默认工具注册后，继续在同一个 <see cref="IMcpServerBuilder"/> 上配置 MCP Server。
+    /// 适用于按插件构造工具实例、追加工具等场景。
+    /// </summary>
+    public Action<IMcpServerBuilder>? ConfigureMcpServer { get; set; }
 
     /// <summary>工具参数/返回值的 JSON 配置；为空时使用框架默认（camelCase、中文不转义、枚举转字符串）。</summary>
     public JsonSerializerOptions? ToolSerializerOptions { get; set; }
 
     /// <summary>
     /// 指定包含 MCP 工具（<c>[McpServerToolType]</c>）与契约绑定声明（<c>[AiContractBinding]</c>）的程序集。
-    /// 框架会据此自动注册生成的桥接与工具。
+    /// 可多次调用以注册多个程序集（插件场景）。
     /// </summary>
-    public void UseMcpToolsFrom(Assembly assembly)
+    public void UseMcpToolsFrom(Assembly assembly) => AddMcpToolsFrom(assembly);
+
+    /// <summary>一次注册多个工具程序集。</summary>
+    public void UseMcpToolsFrom(params Assembly[] assemblies) => AddMcpToolsFrom(assemblies);
+
+    /// <summary>追加一个工具程序集（与 <see cref="UseMcpToolsFrom(Assembly)"/> 等价）。</summary>
+    public void AddMcpToolsFrom(Assembly assembly)
     {
         AiGuard.NotNull(assembly);
-        McpToolsAssembly = assembly;
+
+        if (!_mcpToolAssemblies.Contains(assembly))
+        {
+            _mcpToolAssemblies.Add(assembly);
+        }
+    }
+
+    /// <summary>一次追加多个工具程序集。</summary>
+    public void AddMcpToolsFrom(params Assembly[] assemblies)
+    {
+        AiGuard.NotNull(assemblies);
+
+        foreach (Assembly assembly in assemblies)
+        {
+            AddMcpToolsFrom(assembly);
+        }
     }
 }
 
@@ -96,18 +128,27 @@ public static class AiExtensionServiceCollectionExtensions
         services.AddAiChatSession(options.ChatOptions, options.FallbackChatClient);
 
         // 工具程序集：自动登记生成的契约桥接，并启动进程内 MCP Server
-        if (options.McpToolsAssembly is { } toolsAssembly)
+        foreach (Assembly toolsAssembly in options.McpToolAssemblies)
         {
             RegisterGeneratedBridges(services, toolsAssembly);
+        }
 
+        if (options.McpToolAssemblies.Count > 0 || options.ConfigureMcpServer is not null)
+        {
             var bridge = new McpServerBridge();
             services.AddSingleton(bridge);
 
             IMcpServerBuilder mcp = services.AddMcpServer();
             mcp.WithInProcessStreamTransport(bridge);
-            mcp.WithToolsFromAssembly(
-                toolsAssembly,
-                options.ToolSerializerOptions ?? AiExtensionJson.CreateToolSerializerOptions());
+
+            JsonSerializerOptions serializerOptions =
+                options.ToolSerializerOptions ?? AiExtensionJson.CreateToolSerializerOptions();
+            foreach (Assembly toolsAssembly in options.McpToolAssemblies)
+            {
+                mcp.WithToolsFromAssembly(toolsAssembly, serializerOptions);
+            }
+
+            options.ConfigureMcpServer?.Invoke(mcp);
         }
 
         // 自动启动：host.StartAsync() 时初始化供应商配置并连接进程内 MCP Client
@@ -123,12 +164,17 @@ public static class AiExtensionServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddAiExtensionContracts(
         this IServiceCollection services,
-        Assembly toolsAssembly)
+        params Assembly[] toolsAssemblies)
     {
         AiGuard.NotNull(services);
-        AiGuard.NotNull(toolsAssembly);
+        AiGuard.NotNull(toolsAssemblies);
 
-        RegisterGeneratedBridges(services, toolsAssembly);
+        foreach (Assembly toolsAssembly in toolsAssemblies)
+        {
+            AiGuard.NotNull(toolsAssembly);
+            RegisterGeneratedBridges(services, toolsAssembly);
+        }
+
         return services;
     }
 

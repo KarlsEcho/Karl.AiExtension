@@ -228,8 +228,11 @@ public sealed class AiMcpPipeExposureService : IAiMcpPipeExposureService
         AiExtensionOptions options = _services.GetService<AiExtensionOptions>()
             ?? throw new InvalidOperationException("未找到 AI 扩展配置：请先通过 AddAiExtensionWpf 接入。");
 
-        Assembly toolsAssembly = options.McpToolsAssembly
-            ?? throw new InvalidOperationException("未配置 MCP 工具程序集：请先调用 UseMcpToolsFrom。");
+        IReadOnlyList<Assembly> toolsAssemblies = options.McpToolAssemblies;
+        if (toolsAssemblies.Count == 0)
+        {
+            throw new InvalidOperationException("未配置 MCP 工具程序集：请先调用 UseMcpToolsFrom。");
+        }
 
         JsonSerializerOptions serializerOptions = options.ToolSerializerOptions
             ?? AiExtensionJson.CreateToolSerializerOptions();
@@ -237,12 +240,18 @@ public sealed class AiMcpPipeExposureService : IAiMcpPipeExposureService
         HostApplicationBuilder builder = Host.CreateApplicationBuilder();
         builder.Logging.ClearProviders();
 
-        ForwardToolDependencies(builder.Services, toolsAssembly, _services);
+        foreach (Assembly toolsAssembly in toolsAssemblies)
+        {
+            ForwardToolDependencies(builder.Services, toolsAssembly, _services);
+        }
 
-        builder.Services
-            .AddMcpServer()
-            .WithToolsFromAssembly(toolsAssembly, serializerOptions)
-            .WithStreamServerTransport(pipe, pipe);
+        IMcpServerBuilder mcp = builder.Services.AddMcpServer();
+        foreach (Assembly toolsAssembly in toolsAssemblies)
+        {
+            mcp.WithToolsFromAssembly(toolsAssembly, serializerOptions);
+        }
+
+        mcp.WithStreamServerTransport(pipe, pipe);
 
         return builder.Build();
     }

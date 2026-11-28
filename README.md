@@ -317,6 +317,31 @@ services.AddAiExtensionWpf(
 - 两种模式暴露同一套工具，工具仍在 WPF 进程执行，UI 状态/权限不变；
 - **net48 目标只保留 stdio**；HTTP 需要 ASP.NET Core，net48 不可用。
 
+### 3.11 多程序集/插件工具（0.7 preview）
+
+插件场景可以一次注册多个工具/契约程序集：
+
+```csharp
+services.AddAiExtension(options =>
+{
+    options.UseMcpToolsFrom(typeof(PluginATools).Assembly);
+    options.UseMcpToolsFrom(typeof(PluginBTools).Assembly);
+    // 或 options.AddMcpToolsFrom(assembly);
+
+    // 在框架默认注册后，继续往同一个 IMcpServerBuilder 追加工具
+    options.ConfigureMcpServer = mcp => mcp.WithTools(pluginCToolsInstance);
+});
+
+// 只注册契约桥接（stdio/HTTP 宿主或自定义 MCP 装配）
+services.AddAiExtensionContracts(typeof(PluginAContracts).Assembly, typeof(PluginBContracts).Assembly);
+```
+
+- `AiContractCatalog` 会从容器聚合**所有** `IAiContractBridge`，多个插件目录都会出现在诊断面板；
+- `UseMcpToolsFrom(Assembly)` 旧用法不变；
+- 插件工具实例如果依赖插件私有服务，优先把服务注册进宿主根容器，或用 `ConfigureMcpServer` 直接 `WithTools(instance)`；
+- 已知边界：动态启停插件后的 `ListTools` 热刷新仍需重启 AI runtime（0.8+）；宿主不要静态引用多个插件的
+  `AI.Extension.Generated` 类型，统一通过 `UseMcpToolsFrom` / `AddAiExtensionContracts` 注册。
+
 ## 4. 新增一个 AI 能力（5 步）
 
 以「客户管理」为例：

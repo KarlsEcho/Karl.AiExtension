@@ -1,3 +1,13 @@
+## 0.7.0-beta.1 (2026-11-28)
+
+- **多程序集工具注册**：`UseMcpToolsFrom(params Assembly[])` / `AddMcpToolsFrom(...)`，保留单程序集旧 API；
+- **多程序集契约聚合**：生成器改为每个桥接注册 `IAiContractBridge`，`AiContractCatalog` 从容器聚合全部桥接；
+  `AddAiExtensionContracts(params Assembly[])` 支持多个程序集；
+- **`ConfigureMcpServer` 回调**：宿主可在同一个 `IMcpServerBuilder` 上追加工具/配置，不需要绕过 `AddAiExtension`；
+- HTTP/stdio 对外暴露也支持多工具程序集；
+- 新增 `Demo.SecondTools` 与 `MultiAssembly.Tests`（多工具程序集 + 双契约目录 + 配置回调）。
+- 已知边界：插件动态启停后的 `ListTools` 热刷新仍需重启 AI runtime（0.8+ 设计）；宿主不要静态引用多个插件的
+  `AI.Extension.Generated` 类型，统一用 `AddAiExtensionContracts` / `UseMcpToolsFrom` 注册。
 # Changelog
 
 ## 0.6.2 (2026-11-27)
@@ -44,6 +54,7 @@
 ## 0.1.0-beta.1 (2026-11-27)
 
 - 首次发布：契约生成器、Core、WPF、Blazor。
+
 
 
 

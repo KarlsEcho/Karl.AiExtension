@@ -50,8 +50,12 @@ public sealed class AiMcpHttpExposureService : IMcpHttpExposureService
 
             AiExtensionOptions options = _services.GetService<AiExtensionOptions>()
                 ?? throw new InvalidOperationException("未找到 AI 扩展配置：请先通过 AddAiExtension/AddAiExtensionWpf 接入。");
-            Assembly toolsAssembly = options.McpToolsAssembly
-                ?? throw new InvalidOperationException("未配置 MCP 工具程序集：请先调用 options.UseMcpToolsFrom(typeof(XxxTools).Assembly)。");
+            IReadOnlyList<Assembly> toolsAssemblies = options.McpToolAssemblies;
+            if (toolsAssemblies.Count == 0)
+            {
+                throw new InvalidOperationException("未配置 MCP 工具程序集：请先调用 options.UseMcpToolsFrom(typeof(XxxTools).Assembly)。");
+            }
+
             JsonSerializerOptions serializerOptions = options.ToolSerializerOptions
                 ?? AiExtensionJson.CreateToolSerializerOptions();
 
@@ -63,12 +67,18 @@ public sealed class AiMcpHttpExposureService : IMcpHttpExposureService
 
             // 工具类往往依赖宿主里的单例（契约桥接、UI 上下文日志等），
             // 这里把工具构造函数需要的依赖从宿主 DI 取实例转发进子容器。
-            ForwardToolDependencies(builder.Services, toolsAssembly, _services);
+            foreach (Assembly toolsAssembly in toolsAssemblies)
+            {
+                ForwardToolDependencies(builder.Services, toolsAssembly, _services);
+            }
 
-            builder.Services
-                .AddMcpServer()
-                .WithToolsFromAssembly(toolsAssembly, serializerOptions)
-                .WithHttpTransport(transportOptions => transportOptions.Stateless = true);
+            IMcpServerBuilder mcp = builder.Services.AddMcpServer();
+            foreach (Assembly toolsAssembly in toolsAssemblies)
+            {
+                mcp.WithToolsFromAssembly(toolsAssembly, serializerOptions);
+            }
+
+            mcp.WithHttpTransport(transportOptions => transportOptions.Stateless = true);
 
             WebApplication app = builder.Build();
             app.MapMcp();
