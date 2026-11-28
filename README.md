@@ -89,10 +89,10 @@ Demo.MCP 引用 AI.Extension.Abstractions（编写绑定声明）与 AI.Extensio
 
 ## 从 NuGet 安装（Beta）
 
-> 当前正式版 `0.6.2`。发布流程（Trusted Publishing / 打 tag）见 [.github/RELEASING.md](.github/RELEASING.md)。
+> 当前正式版 `0.7.0`。发布流程（Trusted Publishing / 打 tag）见 [.github/RELEASING.md](.github/RELEASING.md)。
 
 ```powershell
-dotnet add package Karl.AIExtension.WPF --version 0.6.2
+dotnet add package Karl.AIExtension.WPF --version 0.7.0
 # 按需单独引用：Karl.AIExtension.Core / Karl.AIExtension.Abstractions / Karl.AIExtension.Blazor
 ```
 
@@ -317,7 +317,7 @@ services.AddAiExtensionWpf(
 - 两种模式暴露同一套工具，工具仍在 WPF 进程执行，UI 状态/权限不变；
 - **net48 目标只保留 stdio**；HTTP 需要 ASP.NET Core，net48 不可用。
 
-### 3.11 多程序集/插件工具（0.7 preview）
+### 3.11 多程序集/插件工具
 
 插件场景可以一次注册多个工具/契约程序集：
 
@@ -381,6 +381,7 @@ services.AddAiExtensionContracts(typeof(PluginAContracts).Assembly, typeof(Plugi
 - [`docs/UI.md`](docs/UI.md)：**自定义 AI UI**（整槽位替换 / 复制内置视图改造；为什么不做模板 key 层）
 - [.github/RELEASING.md](.github/RELEASING.md)：**NuGet 打包与发布**（包清单、Trusted Publishing 策略、打 tag 自动发布、本地验证）
 - [`docs/BLAZOR.md`](docs/BLAZOR.md)：Blazor 分支如何复用同一套核心
+
 
 
 

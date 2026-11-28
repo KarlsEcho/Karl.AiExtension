@@ -9,7 +9,7 @@
     <Deterministic>true</Deterministic>
 
     <!-- NuGet 包元数据（demo/tests 通过 IsPackable=false 排除） -->
-    <Version>0.7.0-beta.1</Version>
+    <Version>0.7.0</Version>
     <Company>Karl</Company>
     <Product>Karl.AiExtension</Product>
     <Authors>Karl</Authors>
@@ -17,7 +17,7 @@
     <RepositoryUrl>https://github.com/KarlsEcho/Karl.AiExtension</RepositoryUrl>
     <PackageProjectUrl>https://github.com/KarlsEcho/Karl.AiExtension</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageReleaseNotes>0.7.0-beta.1：多程序集 MCP 工具/契约注册、ConfigureMcpServer 回调、契约目录聚合；包含 0.6.2 的 net48 依赖解析修复；详见 CHANGELOG.md。</PackageReleaseNotes>
+    <PackageReleaseNotes>0.7.0 正式版：多程序集 MCP 工具/契约注册、ConfigureMcpServer 回调、契约目录聚合；包含 0.6.2 的 net48 依赖解析修复；详见 CHANGELOG.md。</PackageReleaseNotes>
     <PackageTags>ai;mcp;wpf;blazor;source-generator;dotnet</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -45,6 +45,7 @@
   </ItemGroup>
 
 </Project>
+
 
 
 

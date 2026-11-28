@@ -1,4 +1,4 @@
-## 0.7.0-beta.1 (2026-11-28)
+## 0.7.0 (2026-11-28)
 
 - **多程序集工具注册**：`UseMcpToolsFrom(params Assembly[])` / `AddMcpToolsFrom(...)`，保留单程序集旧 API；
 - **多程序集契约聚合**：生成器改为每个桥接注册 `IAiContractBridge`，`AiContractCatalog` 从容器聚合全部桥接；
@@ -54,6 +54,7 @@
 ## 0.1.0-beta.1 (2026-11-27)
 
 - 首次发布：契约生成器、Core、WPF、Blazor。
+
 
 
 
